@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 1m
+
+scrape_configs:
+  - job_name: 'ssl'
+    metrics_path: /probe
+    static_configs:
+      - targets:
+        - 'https://google.co.uk'
+        - 'https://prometheus.io'
+        - 'https://example.com'
+        - 'https://helloworld.letsencrypt.org'
+        - 'https://expired.badssl.com'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219  # SSL exporter.
