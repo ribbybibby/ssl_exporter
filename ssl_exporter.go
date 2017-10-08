@@ -80,6 +80,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: e.insecure},
 	}
 	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 		Transport: tr,
 		Timeout: e.timeout,
 	}
@@ -92,6 +95,15 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		)
 		return
 	}
+
+	if resp.TLS == nil {
+		log.Errorln("The response from " + e.target + " is unencrypted")
+		ch <- prometheus.MustNewConstMetric(
+			httpsConnectSuccess, prometheus.GaugeValue, 0,
+		)
+		return
+	}
+
 	ch <- prometheus.MustNewConstMetric(
 		httpsConnectSuccess, prometheus.GaugeValue, 1,
 	)
@@ -151,16 +163,6 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func probeHandler(w http.ResponseWriter, r *http.Request, insecure bool) {
 
 	target := r.URL.Query().Get("target")
-
-	if target == "" {
-		http.Error(w, "Target parameter is missing", 400)
-		return
-	}
-
-	if strings.HasPrefix(target, "http://") {
-		http.Error(w, "Target is using the http:// protocol", 400)
-		return
-	}
 
 	// The following timeout block was taken wholly from the blackbox exporter 
 	//   https://github.com/prometheus/blackbox_exporter/blob/master/main.go
