@@ -2,10 +2,8 @@ package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -203,19 +202,16 @@ func init() {
 
 func main() {
 	var (
-		showVersion   = flag.Bool("version", false, "Print version information")
-		listenAddress = flag.String("web.listen-address", ":9219", "Address to listen on for web interface and telemetry.")
-		metricsPath   = flag.String("web.metrics-path", "/metrics", "Path under which to expose metrics")
-		probePath     = flag.String("web.probe-path", "/probe", "Path under which to expose the probe endpoint")
-		insecure      = flag.Bool("tls.insecure", false, "Skip certificate verification")
+		listenAddress = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9219").String()
+		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
+		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
+		insecure      = kingpin.Flag("tls.insecure", "Skip certificate verification").Default("false").Bool()
 	)
 
-	flag.Parse()
-
-	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.Print(namespace + "_exporter"))
-		os.Exit(0)
-	}
+	log.AddFlags(kingpin.CommandLine)
+	kingpin.Version(version.Print(namespace + "_exporter"))
+	kingpin.HelpFlag.Short('h')
+	kingpin.Parse()
 
 	log.Infoln("Starting " + namespace + "_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())

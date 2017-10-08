@@ -12,11 +12,11 @@ Whatever it is, the SSL exporter gives you visibility over those dimensions at t
 Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target=https://example.com](http://localhost:9219/probe?target=https://example.com) will return certificate metrics for example.com. The ```ssl_https_connect_success``` metric indicates if the probe has been successful.
 
 ## Flags
-    ./ssl_exporter -help
- * __`-tls.insecure`:__ Skip certificate verification (default false). This is insecure but does allow you to collect metrics in the case where a certificate has expired. That being said, I feel that it's more important to catch verification failures than it is to identify an expired certificate, especially as the former includes the latter.
- * __`-web.listen-address`:__ The port (default ":9219").
- * __`-web.metrics-path`:__ The path metrics are exposed under (default "/metrics")
- * __`-web.probe-path`:__ The path the probe endpoint is exposed under (default "/probe")
+    ./ssl_exporter --help
+ * __`--tls.insecure`:__ Skip certificate verification (default false). This is insecure but does allow you to collect metrics in the case where a certificate has expired. That being said, I feel that it's more important to catch verification failures than it is to identify an expired certificate, especially as the former includes the latter.
+ * __`--web.listen-address`:__ The port (default ":9219").
+ * __`--web.metrics-path`:__ The path metrics are exposed under (default "/metrics")
+ * __`--web.probe-path`:__ The path the probe endpoint is exposed under (default "/probe")
 
 ## Metrics
 Metrics are exported for each certificate in the chain individually. All of the metrics are labelled with the Issuer's Common Name and the Serial ID, which is pretty much a unique identifier.
