@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -83,10 +84,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			return http.ErrUseLastResponse
 		},
 		Transport: tr,
-		Timeout: e.timeout,
+		Timeout:   e.timeout,
 	}
 	resp, err := client.Get(e.target)
-	
+
 	if err != nil {
 		log.Errorln(err)
 		ch <- prometheus.MustNewConstMetric(
@@ -107,15 +108,17 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		httpsConnectSuccess, prometheus.GaugeValue, 1,
 	)
 
-	// Loop through returned certificates and create metrics
-	for _, cert := range resp.TLS.PeerCertificates {
+	peer_certificates := uniq(resp.TLS.PeerCertificates)
 
-		subject_cn     := cert.Subject.CommonName
-		issuer_cn      := cert.Issuer.CommonName
-		subject_dnsn   := cert.DNSNames
+	// Loop through returned certificates and create metrics
+	for _, cert := range peer_certificates {
+
+		subject_cn := cert.Subject.CommonName
+		issuer_cn := cert.Issuer.CommonName
+		subject_dnsn := cert.DNSNames
 		subject_emails := cert.EmailAddresses
-		subject_ips    := cert.IPAddresses
-		serial_no      := cert.SerialNumber.String()
+		subject_ips := cert.IPAddresses
+		serial_no := cert.SerialNumber.String()
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
@@ -163,7 +166,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request, insecure bool) {
 
 	target := r.URL.Query().Get("target")
 
-	// The following timeout block was taken wholly from the blackbox exporter 
+	// The following timeout block was taken wholly from the blackbox exporter
 	//   https://github.com/prometheus/blackbox_exporter/blob/master/main.go
 	var timeoutSeconds float64
 	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
@@ -196,6 +199,27 @@ func probeHandler(w http.ResponseWriter, r *http.Request, insecure bool) {
 	h.ServeHTTP(w, r)
 }
 
+func uniq(certs []*x509.Certificate) []*x509.Certificate {
+	r := []*x509.Certificate{}
+
+	for _, c := range certs {
+		if !contains(r, c) {
+			r = append(r, c)
+		}
+	}
+
+	return r
+}
+
+func contains(certs []*x509.Certificate, cert *x509.Certificate) bool {
+	for _, c := range certs {
+		if (c.SerialNumber.String() == cert.SerialNumber.String()) && (c.Issuer.CommonName == cert.Issuer.CommonName) {
+			return true
+		}
+	}
+	return false
+}
+
 func init() {
 	prometheus.MustRegister(version.NewCollector(namespace + "_exporter"))
 }
@@ -213,7 +237,7 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	log.Infoln("Starting " + namespace + "_exporter", version.Info())
+	log.Infoln("Starting "+namespace+"_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	http.Handle(*metricsPath, prometheus.Handler())
