@@ -1,0 +1,8 @@
+repository:
+    path: github.com/ribbybibby/ssl_exporter
+build:
+    flags: -a -tags netgo
+
+tarball:
+    files:
+        - LICENSE

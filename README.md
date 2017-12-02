@@ -7,7 +7,7 @@ For instance, there's a definite value in knowing, upon first receiving an alert
 Whatever it is, the SSL exporter gives you visibility over those dimensions at the point at which you receive an alert. It also allows you to produce more meaningful visualisations and consoles.
 
 ## Building
-    go build
+    make
     ./ssl_exporter <flags>
 Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target=https://example.com](http://localhost:9219/probe?target=https://example.com) will return certificate metrics for example.com. The ```ssl_https_connect_success``` metric indicates if the probe has been successful.
 
