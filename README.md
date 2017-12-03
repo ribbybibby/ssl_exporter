@@ -10,11 +10,11 @@ Whatever it is, the SSL exporter gives you visibility over those dimensions at t
     make
     ./ssl_exporter <flags>
 
-### Docker
-    make all docker
-    docker run -p 9219:9219 ssl-exporter:master <flags>
-
 Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target=https://example.com](http://localhost:9219/probe?target=https://example.com) will return certificate metrics for example.com. The ```ssl_https_connect_success``` metric indicates if the probe has been successful.
+
+## Docker
+    docker pull ribbybibby/ssl-exporter
+    docker run -p 9219:9219 ssl-exporter:latest <flags>
 
 ## Flags
     ./ssl_exporter --help
