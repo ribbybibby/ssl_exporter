@@ -249,7 +249,7 @@ func main() {
 						 <head><title>SSL Exporter</title></head>
 						 <body>
 						 <h1>SSL Exporter</h1>
-						 <p><a href="` + *probePath + `?target=example.com:443">Probe example.com:443 for SSL cert metrics</a></p>
+						 <p><a href="` + *probePath + `?target=https://example.com">Probe https://example.com for SSL cert metrics</a></p>
 						 <p><a href='` + *metricsPath + `'>Metrics</a></p>
 						 </body>
 						 </html>`))
