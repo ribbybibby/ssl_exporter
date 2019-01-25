@@ -56,6 +56,11 @@ var (
 		"Subject Alternative DNS Names",
 		[]string{"serial_no", "issuer_cn", "emails"}, nil,
 	)
+	subjectOrganizationUnits = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "cert_subject_organization_units"),
+		"Subject Organization Units",
+		[]string{"serial_no", "issuer_cn", "subject_ou"}, nil,
+	)
 )
 
 type Exporter struct {
@@ -71,6 +76,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- subjectAlernativeDNSNames
 	ch <- subjectAlernativeIPs
 	ch <- subjectAlernativeEmailAddresses
+	ch <- subjectOrganizationUnits
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -119,6 +125,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		subject_emails := cert.EmailAddresses
 		subject_ips := cert.IPAddresses
 		serial_no := cert.SerialNumber.String()
+		subject_ous := cert.Subject.OrganizationalUnit
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
@@ -157,6 +164,12 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(
 				subjectAlernativeIPs, prometheus.GaugeValue, 1, serial_no, issuer_cn, i,
+			)
+		}
+
+		if len(subject_ous) > 0 {
+			ch <- prometheus.MustNewConstMetric(
+				subjectOrganizationUnits, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(subject_ous, ",")+",",
 			)
 		}
 	}
@@ -249,7 +262,7 @@ func main() {
 						 <head><title>SSL Exporter</title></head>
 						 <body>
 						 <h1>SSL Exporter</h1>
-						 <p><a href="` + *probePath + `?target=example.com:443">Probe example.com:443 for SSL cert metrics</a></p>
+						 <p><a href="` + *probePath + `?target=https://example.com">Probe https://example.com for SSL cert metrics</a></p>
 						 <p><a href='` + *metricsPath + `'>Metrics</a></p>
 						 </body>
 						 </html>`))
