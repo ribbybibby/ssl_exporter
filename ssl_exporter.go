@@ -125,7 +125,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		subject_emails := cert.EmailAddresses
 		subject_ips := cert.IPAddresses
 		serial_no := cert.SerialNumber.String()
-		ous := cert.Subject.OrganizationalUnit
+		subject_ous := cert.Subject.OrganizationalUnit
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
@@ -167,9 +167,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 
-		if len(ous) > 0 {
+		if len(subject_ous) > 0 {
 			ch <- prometheus.MustNewConstMetric(
-				subjectOrganizationUnits, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(ous, ",")+",",
+				subjectOrganizationUnits, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(subject_ous, ",")+",",
 			)
 		}
 	}
