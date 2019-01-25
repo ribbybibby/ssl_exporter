@@ -36,6 +36,7 @@ I considered having a series for each ```ssl_cert_subject_alternative_*``` value
 | ssl_cert_subject_alternative_dnsnames | The subject alternative names (if any). Always has a value of 1 | issuer_cn, serial_no, dnsnames |
 | ssl_cert_subject_alternative_emails | The subject alternative email addresses (if any). Always has a value of 1 | issuer_cn, serial_no, emails |
 | ssl_cert_subject_alternative_ips | The subject alternative IP addresses (if any). Always has a value of 1 | issuer_cn, serial_no, ips |
+| ssl_cert_subject_organization_units | The subject organization names (if any). Always has a value of 1. | issuer_cn, serial_no, subject_ou |
 | ssl_https_connect_success | Was the HTTPS connection successful? Boolean. | |
 
 ## Prometheus
