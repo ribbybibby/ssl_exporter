@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -65,9 +66,9 @@ var (
 
 // Exporter is the exporter type...
 type Exporter struct {
-	target   string
-	timeout  time.Duration
-	insecure bool
+	target    string
+	timeout   time.Duration
+	tlsConfig *tls.Config
 }
 
 // Describe metrics
@@ -86,7 +87,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Create the HTTP client and make a get request of the target
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: e.insecure},
+		TLSClientConfig: e.tlsConfig,
 	}
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -179,7 +180,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func probeHandler(w http.ResponseWriter, r *http.Request, insecure bool) {
+func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config) {
 
 	target := r.URL.Query().Get("target")
 
@@ -203,9 +204,9 @@ func probeHandler(w http.ResponseWriter, r *http.Request, insecure bool) {
 	timeout := time.Duration((timeoutSeconds) * 1e9)
 
 	exporter := &Exporter{
-		target:   target,
-		timeout:  timeout,
-		insecure: insecure,
+		target:    target,
+		timeout:   timeout,
+		tlsConfig: tlsConfig,
 	}
 
 	registry := prometheus.NewRegistry()
@@ -243,10 +244,17 @@ func init() {
 
 func main() {
 	var (
+		tlsConfig     *tls.Config
+		certificates  []tls.Certificate
+		rootCAs       *x509.CertPool
 		listenAddress = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9219").String()
 		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
 		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
 		insecure      = kingpin.Flag("tls.insecure", "Skip certificate verification").Default("false").Bool()
+		clientAuth    = kingpin.Flag("tls.client-auth", "Enable client authentication").Default("false").Bool()
+		caFile        = kingpin.Flag("tls.cacert", "Local path to an alternative CA cert bundle").String()
+		certFile      = kingpin.Flag("tls.cert", "Local path to a client certificate file (for client authentication)").String()
+		keyFile       = kingpin.Flag("tls.key", "Local path to a private key file (for client authentication)").String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -254,12 +262,35 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
+	if *clientAuth {
+
+		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		certificates = append(certificates, cert)
+
+		caCert, err := ioutil.ReadFile(*caFile)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		rootCAs = x509.NewCertPool()
+		rootCAs.AppendCertsFromPEM(caCert)
+	}
+
+	tlsConfig = &tls.Config{
+		InsecureSkipVerify: *insecure,
+		Certificates:       certificates,
+		RootCAs:            rootCAs,
+	}
+
 	log.Infoln("Starting "+namespace+"_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	http.Handle(*metricsPath, prometheus.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, *insecure)
+		probeHandler(w, r, tlsConfig)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
