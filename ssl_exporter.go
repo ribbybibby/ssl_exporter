@@ -262,14 +262,7 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	if *clientAuth {
-
-		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		certificates = append(certificates, cert)
-
+	if *caFile != "" {
 		caCert, err := ioutil.ReadFile(*caFile)
 		if err != nil {
 			log.Fatalln(err)
@@ -277,6 +270,14 @@ func main() {
 
 		rootCAs = x509.NewCertPool()
 		rootCAs.AppendCertsFromPEM(caCert)
+	}
+
+	if *clientAuth {
+		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		certificates = append(certificates, cert)
 	}
 
 	tlsConfig = &tls.Config{
