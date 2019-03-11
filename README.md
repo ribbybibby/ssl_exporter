@@ -19,6 +19,10 @@ Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target
 ## Flags
     ./ssl_exporter --help
  * __`--tls.insecure`:__ Skip certificate verification (default false). This is insecure but does allow you to collect metrics in the case where a certificate has expired. That being said, I feel that it's more important to catch verification failures than it is to identify an expired certificate, especially as the former includes the latter.
+ * __`--tls.cacert`:__ Provide the path to an alternative bundle of root CA certificates. By default the exporter will use the host's root CA set.
+ * __`--tls.client-auth`:__ Enable client authentication (default false). When enabled the exporter will present the certificate and key configured by `--tls.cert` and `tls.key` to the other side of the connection.
+ * __`--tls.cert`:__ The path to a local certificate for client authentication (default "cert.pem"). Only used when `--tls.client-auth` is toggled on.
+ * __`--tls.key`:__ The path to a local key for client authentication (default "key.pem"). Only used when `--tls.client-auth` is toggled on.
  * __`--web.listen-address`:__ The port (default ":9219").
  * __`--web.metrics-path`:__ The path metrics are exposed under (default "/metrics")
  * __`--web.probe-path`:__ The path the probe endpoint is exposed under (default "/probe")
@@ -76,6 +80,13 @@ Number of certificates in the chain:
 Identify instances that have failed to create a valid SSL connection:
 
     ssl_https_connect_success == 0
+
+## Client authentication
+The exporter optionally supports client authentication, which can be toggled on by providing the `--tls.client-auth` flag. By default, it will use the host system's root CA bundle and attempt to use `./cert.pem` and `./key.pem` as the client certificate and key, respectively. You can override these defaults with `--tls.cacert`, `--tls.cert` and `--tls.key`.
+
+If you do enable client authentication, keep in mind that the certificate will be passed to all targets, even those that don't necessarily require client authentication. I'm not sure what the implications of that are but I think you'd probably want to avoid passing a certificate to an unrelated server.
+
+Also, if you want to scrape targets with different client certificate requirements, you'll need to run different instances of the exporter for each. This seemed like a better approach than overloading the exporter with the ability to pass different certificates per-target.
 
 ## Limitations
 I've only exported a subset of the information you could extract from a certificate. It would be simple to add more, for instance organisational information, if there's a need.
