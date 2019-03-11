@@ -48,12 +48,12 @@ var (
 	)
 	subjectAlernativeIPs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_subject_alternative_ips"),
-		"Subject Alternative DNS Names",
+		"Subject Alternative IPs",
 		[]string{"serial_no", "issuer_cn", "ips"}, nil,
 	)
 	subjectAlernativeEmailAddresses = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_subject_alternative_emails"),
-		"Subject Alternative DNS Names",
+		"Subject Alternative Email Addresses",
 		[]string{"serial_no", "issuer_cn", "emails"}, nil,
 	)
 	subjectOrganizationUnits = prometheus.NewDesc(
@@ -63,12 +63,14 @@ var (
 	)
 )
 
+// Exporter is the exporter type...
 type Exporter struct {
 	target   string
 	timeout  time.Duration
 	insecure bool
 }
 
+// Describe metrics
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- httpsConnectSuccess
 	ch <- notAfter
@@ -79,6 +81,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- subjectOrganizationUnits
 }
 
+// Collect metrics
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Create the HTTP client and make a get request of the target
@@ -114,62 +117,63 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		httpsConnectSuccess, prometheus.GaugeValue, 1,
 	)
 
-	peer_certificates := uniq(resp.TLS.PeerCertificates)
+	// Remove duplicate certificates from the response
+	peerCertificates := uniq(resp.TLS.PeerCertificates)
 
 	// Loop through returned certificates and create metrics
-	for _, cert := range peer_certificates {
+	for _, cert := range peerCertificates {
 
-		subject_cn := cert.Subject.CommonName
-		issuer_cn := cert.Issuer.CommonName
-		subject_dnsn := cert.DNSNames
-		subject_emails := cert.EmailAddresses
-		subject_ips := cert.IPAddresses
-		serial_no := cert.SerialNumber.String()
-		subject_ous := cert.Subject.OrganizationalUnit
+		subjectCN := cert.Subject.CommonName
+		issuerCN := cert.Issuer.CommonName
+		subjectDNSNames := cert.DNSNames
+		subjectEmails := cert.EmailAddresses
+		subjectIPs := cert.IPAddresses
+		serialNum := cert.SerialNumber.String()
+		subjectOUs := cert.Subject.OrganizationalUnit
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), serial_no, issuer_cn,
+				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), serialNum, issuerCN,
 			)
 		}
 
 		if !cert.NotBefore.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), serial_no, issuer_cn,
+				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), serialNum, issuerCN,
 			)
 		}
 
-		if subject_cn != "" {
+		if subjectCN != "" {
 			ch <- prometheus.MustNewConstMetric(
-				commonName, prometheus.GaugeValue, 1, serial_no, issuer_cn, subject_cn,
+				commonName, prometheus.GaugeValue, 1, serialNum, issuerCN, subjectCN,
 			)
 		}
 
-		if len(subject_dnsn) > 0 {
+		if len(subjectDNSNames) > 0 {
 			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeDNSNames, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(subject_dnsn, ",")+",",
+				subjectAlernativeDNSNames, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectDNSNames, ",")+",",
 			)
 		}
 
-		if len(subject_emails) > 0 {
+		if len(subjectEmails) > 0 {
 			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeEmailAddresses, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(subject_emails, ",")+",",
+				subjectAlernativeEmailAddresses, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectEmails, ",")+",",
 			)
 		}
 
-		if len(subject_ips) > 0 {
+		if len(subjectIPs) > 0 {
 			i := ","
-			for _, ip := range subject_ips {
+			for _, ip := range subjectIPs {
 				i = i + ip.String() + ","
 			}
 			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeIPs, prometheus.GaugeValue, 1, serial_no, issuer_cn, i,
+				subjectAlernativeIPs, prometheus.GaugeValue, 1, serialNum, issuerCN, i,
 			)
 		}
 
-		if len(subject_ous) > 0 {
+		if len(subjectIPs) > 0 {
 			ch <- prometheus.MustNewConstMetric(
-				subjectOrganizationUnits, prometheus.GaugeValue, 1, serial_no, issuer_cn, ","+strings.Join(subject_ous, ",")+",",
+				subjectOrganizationUnits, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectOUs, ",")+",",
 			)
 		}
 	}
