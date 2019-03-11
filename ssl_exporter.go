@@ -253,8 +253,8 @@ func main() {
 		insecure      = kingpin.Flag("tls.insecure", "Skip certificate verification").Default("false").Bool()
 		clientAuth    = kingpin.Flag("tls.client-auth", "Enable client authentication").Default("false").Bool()
 		caFile        = kingpin.Flag("tls.cacert", "Local path to an alternative CA cert bundle").String()
-		certFile      = kingpin.Flag("tls.cert", "Local path to a client certificate file (for client authentication)").String()
-		keyFile       = kingpin.Flag("tls.key", "Local path to a private key file (for client authentication)").String()
+		certFile      = kingpin.Flag("tls.cert", "Local path to a client certificate file (for client authentication)").Default("cert.pem").String()
+		keyFile       = kingpin.Flag("tls.key", "Local path to a private key file (for client authentication)").Default("key.pem").String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
