@@ -6,11 +6,11 @@ scrape_configs:
     metrics_path: /probe
     static_configs:
       - targets:
-        - 'https://google.co.uk'
-        - 'https://prometheus.io'
-        - 'https://example.com'
-        - 'https://helloworld.letsencrypt.org'
-        - 'https://expired.badssl.com'
+        - 'google.co.uk:443'
+        - 'prometheus.io:443'
+        - 'example.com:443'
+        - 'helloworld.letsencrypt.org:443'
+        - 'expired.badssl.com:443'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

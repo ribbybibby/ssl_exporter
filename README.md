@@ -10,7 +10,7 @@ Whatever it is, the SSL exporter gives you visibility over those dimensions at t
     make
     ./ssl_exporter <flags>
 
-Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target=https://example.com](http://localhost:9219/probe?target=https://example.com) will return certificate metrics for example.com. The ```ssl_https_connect_success``` metric indicates if the probe has been successful.
+Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target=example.com:443](http://localhost:9219/probe?target=example.com:443) will return certificate metrics for example.com. The ```ssl_tls_connect_success``` metric indicates if the probe has been successful.
 
 ## Docker
     docker pull ribbybibby/ssl-exporter
@@ -41,7 +41,7 @@ I considered having a series for each ```ssl_cert_subject_alternative_*``` value
 | ssl_cert_subject_alternative_emails | The subject alternative email addresses (if any). Always has a value of 1 | issuer_cn, serial_no, emails |
 | ssl_cert_subject_alternative_ips | The subject alternative IP addresses (if any). Always has a value of 1 | issuer_cn, serial_no, ips |
 | ssl_cert_subject_organization_units | The subject organization names (if any). Always has a value of 1. | issuer_cn, serial_no, subject_ou |
-| ssl_https_connect_success | Was the HTTPS connection successful? Boolean. | |
+| ssl_tls_connect_success | Was the TLS connection successful? Boolean. | |
 
 ## Prometheus
 ### Configuration
@@ -52,8 +52,8 @@ scrape_configs:
     metrics_path: /probe
     static_configs:
       - targets:
-        - https://example.com
-        - https://prometheus.io
+        - example.com:443
+        - prometheus.io:443
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -79,7 +79,7 @@ Number of certificates in the chain:
 
 Identify instances that have failed to create a valid SSL connection:
 
-    ssl_https_connect_success == 0
+    ssl_tls_connect_success == 0
 
 ## Client authentication
 The exporter optionally supports client authentication, which can be toggled on by providing the `--tls.client-auth` flag. By default, it will use the host system's root CA bundle and attempt to use `./cert.pem` and `./key.pem` as the client certificate and key, respectively. You can override these defaults with `--tls.cacert`, `--tls.cert` and `--tls.key`.
