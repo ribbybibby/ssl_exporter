@@ -43,23 +43,23 @@ func TestProbeHandler(t *testing.T) {
 		tlsConfig *tls.Config
 	}{
 		// Test against an assumed valid, reachable and functioning HTTPS address
-		{uri: "https://google.com", ok: true, tlsConfig: &tls.Config{}},
+		{uri: "google.com:443", ok: true, tlsConfig: &tls.Config{}},
 		// Test against a HTTP address
-		{uri: "http://google.com", ok: false, tlsConfig: &tls.Config{}},
+		{uri: "google.com:80", ok: false, tlsConfig: &tls.Config{}},
 		// Test against an expired certificate when we're rejecting invalid certs
-		{uri: "https://expired.badssl.com", ok: false, tlsConfig: &tls.Config{}},
+		{uri: "expired.badssl.com:443", ok: false, tlsConfig: &tls.Config{}},
 		// Test against an expired certificate when we're accepting invalid certs
-		{uri: "https://expired.badssl.com", ok: true, tlsConfig: &tls.Config{InsecureSkipVerify: true}},
-		// Test against a target with no protocol
+		{uri: "expired.badssl.com:443", ok: true, tlsConfig: &tls.Config{InsecureSkipVerify: true}},
+		// Test against a target with no port
 		{uri: "google.com", ok: false, tlsConfig: &tls.Config{}},
 		// Test against a string with spaces
 		{uri: "with spaces", ok: false, tlsConfig: &tls.Config{}},
 		// Test against nothing
 		{uri: "", ok: false, tlsConfig: &tls.Config{}},
 		// Test with client authentication
-		{uri: "https://client.badssl.com", ok: true, tlsConfig: &tls.Config{Certificates: []tls.Certificate{certificate}}},
+		{uri: "client.badssl.com:443", ok: true, tlsConfig: &tls.Config{Certificates: []tls.Certificate{certificate}}},
 		// Test with an empty root CA bundle
-		{uri: "https://google.com", ok: false, tlsConfig: &tls.Config{RootCAs: emptyRootCAs}},
+		{uri: "google.com:443", ok: false, tlsConfig: &tls.Config{RootCAs: emptyRootCAs}},
 	}
 
 	fmt.Println("Note: The error logs in these tests are expected. One of the important tests is that we return the expected body, even in the face of errors.")

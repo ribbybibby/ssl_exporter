@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,8 +23,8 @@ const (
 )
 
 var (
-	httpsConnectSuccess = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "https_connect_success"),
+	tlsConnectSuccess = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "tls_connect_success"),
 		"If the TLS connection was a success",
 		nil, nil,
 	)
@@ -73,7 +74,7 @@ type Exporter struct {
 
 // Describe metrics
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	ch <- httpsConnectSuccess
+	ch <- tlsConnectSuccess
 	ch <- notAfter
 	ch <- commonName
 	ch <- subjectAlernativeDNSNames
@@ -85,41 +86,31 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect metrics
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
-	// Create the HTTP client and make a get request of the target
-	tr := &http.Transport{
-		TLSClientConfig: e.tlsConfig,
-	}
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-		Transport: tr,
-		Timeout:   e.timeout,
-	}
-	resp, err := client.Get(e.target)
-
+	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: e.timeout}, "tcp", e.target, e.tlsConfig)
 	if err != nil {
 		log.Errorln(err)
 		ch <- prometheus.MustNewConstMetric(
-			httpsConnectSuccess, prometheus.GaugeValue, 0,
+			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
 		return
 	}
 
-	if resp.TLS == nil {
-		log.Errorln("The response from " + e.target + " is unencrypted")
+	state := conn.ConnectionState()
+
+	if len(state.PeerCertificates) < 1 {
+		log.Errorln("No certificates found in connection state")
 		ch <- prometheus.MustNewConstMetric(
-			httpsConnectSuccess, prometheus.GaugeValue, 0,
+			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
 		return
 	}
 
 	ch <- prometheus.MustNewConstMetric(
-		httpsConnectSuccess, prometheus.GaugeValue, 1,
+		tlsConnectSuccess, prometheus.GaugeValue, 1,
 	)
 
 	// Remove duplicate certificates from the response
-	peerCertificates := uniq(resp.TLS.PeerCertificates)
+	peerCertificates := uniq(state.PeerCertificates)
 
 	// Loop through returned certificates and create metrics
 	for _, cert := range peerCertificates {
@@ -298,7 +289,7 @@ func main() {
 						 <head><title>SSL Exporter</title></head>
 						 <body>
 						 <h1>SSL Exporter</h1>
-						 <p><a href="` + *probePath + `?target=https://example.com">Probe https://example.com for SSL cert metrics</a></p>
+						 <p><a href="` + *probePath + `?target=example.com:443">Probe example.com:443 for SSL cert metrics</a></p>
 						 <p><a href='` + *metricsPath + `'>Metrics</a></p>
 						 </body>
 						 </html>`))
