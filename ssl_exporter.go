@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -194,8 +195,14 @@ func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config)
 
 	timeout := time.Duration((timeoutSeconds) * 1e9)
 
+	t, err := parseTarget(target)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
 	exporter := &Exporter{
-		target:    target,
+		target:    t,
 		timeout:   timeout,
 		tlsConfig: tlsConfig,
 	}
@@ -227,6 +234,35 @@ func contains(certs []*x509.Certificate, cert *x509.Certificate) bool {
 		}
 	}
 	return false
+}
+
+// parseTarget makes an attempt at converting URLs of the form scheme://host
+// into host:port
+func parseTarget(target string) (parsedTarget string, err error) {
+	if !strings.Contains(target, "://") {
+		target = "//" + target
+	}
+
+	u, err := url.Parse(target)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if u.Port() == "" {
+		switch scheme := u.Scheme; scheme {
+		case "https":
+			parsedTarget = u.Host + ":443"
+		case "ldaps":
+			parsedTarget = u.Host + ":636"
+		default:
+			parsedTarget = u.Host + ":443"
+		}
+	} else {
+		parsedTarget = u.Host
+	}
+
+	return parsedTarget, nil
 }
 
 func init() {
