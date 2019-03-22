@@ -164,7 +164,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 
-		if len(subjectIPs) > 0 {
+		if len(subjectOUs) > 0 {
 			ch <- prometheus.MustNewConstMetric(
 				subjectOrganizationUnits, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectOUs, ",")+",",
 			)
