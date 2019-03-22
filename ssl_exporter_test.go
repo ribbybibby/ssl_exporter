@@ -60,6 +60,12 @@ func TestProbeHandler(t *testing.T) {
 		{uri: "client.badssl.com:443", ok: true, tlsConfig: &tls.Config{Certificates: []tls.Certificate{certificate}}},
 		// Test with an empty root CA bundle
 		{uri: "google.com:443", ok: false, tlsConfig: &tls.Config{RootCAs: emptyRootCAs}},
+		// Test with a https scheme
+		{uri: "https://google.com", ok: true, tlsConfig: &tls.Config{}},
+		// Test with a https scheme and port
+		{uri: "https://google.com:443", ok: true, tlsConfig: &tls.Config{}},
+		// Test with no scheme or port
+		{uri: "google.com", ok: true, tlsConfig: &tls.Config{}},
 	}
 
 	fmt.Println("Note: The error logs in these tests are expected. One of the important tests is that we return the expected body, even in the face of errors.")
