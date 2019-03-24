@@ -31,9 +31,11 @@ func TestProbeHandler(t *testing.T) {
 		t.Fatalf("Issue decrypting test client key")
 	}
 
+	keyContent = pem.EncodeToMemory(&pem.Block{Type: keyBlock.Type, Bytes: keyBlockDecrypted})
+
 	emptyRootCAs := x509.NewCertPool()
 
-	certificate, _ := tls.X509KeyPair(certContent, keyBlockDecrypted)
+	certificate, err := tls.X509KeyPair(certContent, keyContent)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
