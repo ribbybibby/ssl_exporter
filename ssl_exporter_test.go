@@ -33,7 +33,10 @@ func TestProbeHandler(t *testing.T) {
 
 	emptyRootCAs := x509.NewCertPool()
 
-	certificate, err := tls.X509KeyPair(certContent, keyBlockDecrypted)
+	certificate, _ := tls.X509KeyPair(certContent, keyBlockDecrypted)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	// Test the behaviour of various target URIs
 	//    'ok' denotes whether we expect a succesful tls connection
@@ -68,6 +71,11 @@ func TestProbeHandler(t *testing.T) {
 
 	fmt.Println("Note: The error logs in these tests are expected. One of the important tests is that we return the expected body, even in the face of errors.")
 
+	successMetricRegexp, err := regexp.Compile("(ssl_tls_connect_success [0-1])")
+	if err != nil {
+		t.Fatalf("Error compiling success metric: " + err.Error())
+	}
+
 	for _, test := range cases {
 
 		uri := "/probe?target=" + test.uri
@@ -90,11 +98,7 @@ func TestProbeHandler(t *testing.T) {
 		}
 
 		// Make sure we're getting the ssl_tls_connect_success metric back
-		successString, err := regexp.MatchString("(ssl_tls_connect_success [0-1])", rr.Body.String())
-		if err != nil {
-			t.Errorf("regexp against response body returned an error w/ %q", uri)
-		}
-		if !successString {
+		if !successMetricRegexp.MatchString(rr.Body.String()) {
 			t.Errorf("can't find ssl_tls_connect_success metric in response body w/ %q", uri)
 		}
 
