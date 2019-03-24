@@ -197,8 +197,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config)
 
 	t, err := parseTarget(target)
 	if err != nil {
-		log.Errorln(err)
-		return
+		t = target
 	}
 
 	exporter := &Exporter{

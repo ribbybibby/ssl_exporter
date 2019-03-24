@@ -36,7 +36,7 @@ func TestProbeHandler(t *testing.T) {
 	certificate, err := tls.X509KeyPair(certContent, keyBlockDecrypted)
 
 	// Test the behaviour of various target URIs
-	//    'ok' denotes whether we expect a succesful https connection
+	//    'ok' denotes whether we expect a succesful tls connection
 	cases := []struct {
 		uri       string
 		ok        bool
@@ -51,7 +51,7 @@ func TestProbeHandler(t *testing.T) {
 		// Test against an expired certificate when we're accepting invalid certs
 		{uri: "expired.badssl.com:443", ok: true, tlsConfig: &tls.Config{InsecureSkipVerify: true}},
 		// Test against a target with no port
-		{uri: "google.com", ok: false, tlsConfig: &tls.Config{}},
+		{uri: "google.com", ok: true, tlsConfig: &tls.Config{}},
 		// Test against a string with spaces
 		{uri: "with spaces", ok: false, tlsConfig: &tls.Config{}},
 		// Test against nothing
@@ -64,8 +64,6 @@ func TestProbeHandler(t *testing.T) {
 		{uri: "https://google.com", ok: true, tlsConfig: &tls.Config{}},
 		// Test with a https scheme and port
 		{uri: "https://google.com:443", ok: true, tlsConfig: &tls.Config{}},
-		// Test with no scheme or port
-		{uri: "google.com", ok: true, tlsConfig: &tls.Config{}},
 	}
 
 	fmt.Println("Note: The error logs in these tests are expected. One of the important tests is that we return the expected body, even in the face of errors.")
@@ -91,22 +89,22 @@ func TestProbeHandler(t *testing.T) {
 				status, http.StatusOK)
 		}
 
-		// Make sure we're getting the ssl_https_connect_success metric back
-		successString, err := regexp.MatchString("(ssl_https_connect_success [0-1])", rr.Body.String())
+		// Make sure we're getting the ssl_tls_connect_success metric back
+		successString, err := regexp.MatchString("(ssl_tls_connect_success [0-1])", rr.Body.String())
 		if err != nil {
 			t.Errorf("regexp against response body returned an error w/ %q", uri)
 		}
 		if !successString {
-			t.Errorf("can't find ssl_https_connect_success metric in response body w/ %q", uri)
+			t.Errorf("can't find ssl_tls_connect_success metric in response body w/ %q", uri)
 		}
 
-		// Make sure we're getting the result we expect from ssl_https_connect_success
-		ok := strings.Contains(rr.Body.String(), "ssl_https_connect_success 1")
+		// Make sure we're getting the result we expect from ssl_tls_connect_success
+		ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1")
 		if test.ok && !ok {
-			t.Errorf("expected https connection to succeed but it failed w/ %q", uri)
+			t.Errorf("expected tls connection to succeed but it failed w/ %q", uri)
 		}
 		if !test.ok && ok {
-			t.Errorf("expected https connection to fail but it succeeded w/ %q", uri)
+			t.Errorf("expected tls connection to fail but it succeeded w/ %q", uri)
 		}
 
 	}
