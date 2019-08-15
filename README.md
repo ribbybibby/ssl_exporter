@@ -6,6 +6,26 @@ For instance, there's a definite value in knowing, upon first receiving an alert
 
 Whatever it is, the SSL exporter gives you visibility over those dimensions at the point at which you receive an alert. It also allows you to produce more meaningful visualisations and consoles.
 
+## Table of Contents
+
+   * [SSL Certificate Exporter](#ssl-certificate-exporter)
+      * [Building](#building)
+      * [Docker](#docker)
+      * [Flags](#flags)
+      * [Metrics](#metrics)
+      * [Prometheus](#prometheus)
+         * [Configuration](#configuration)
+         * [Targets](#targets)
+            * [Valid targets](#valid-targets)
+            * [Invalid targets](#invalid-targets)
+         * [Example Queries](#example-queries)
+      * [Client authentication](#client-authentication)
+      * [Proxying](#proxying)
+      * [Limitations](#limitations)
+      * [Acknowledgements](#acknowledgements)
+
+Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
+
 ## Building
 
     make
