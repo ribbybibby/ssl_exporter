@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -28,6 +29,11 @@ var (
 		prometheus.BuildFQName(namespace, "", "tls_connect_success"),
 		"If the TLS connection was a success",
 		nil, nil,
+	)
+	clientProtocol = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "client_protocol"),
+		"The protocol used by the exporter to connect to the target",
+		[]string{"protocol"}, nil,
 	)
 	notBefore = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_not_before"),
@@ -76,6 +82,7 @@ type Exporter struct {
 // Describe metrics
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- tlsConnectSuccess
+	ch <- clientProtocol
 	ch <- notAfter
 	ch <- commonName
 	ch <- subjectAlernativeDNSNames
@@ -86,8 +93,10 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect metrics
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
+	var peerCertificates []*x509.Certificate
 
-	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: e.timeout}, "tcp", e.target, e.tlsConfig)
+	// Parse the target and return the appropriate connection protocol and target address
+	target, proto, err := parseTarget(e.target)
 	if err != nil {
 		log.Errorln(err)
 		ch <- prometheus.MustNewConstMetric(
@@ -96,10 +105,75 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	state := conn.ConnectionState()
+	ch <- prometheus.MustNewConstMetric(
+		clientProtocol, prometheus.GaugeValue, 1, proto,
+	)
 
-	if len(state.PeerCertificates) < 1 {
-		log.Errorln("No certificates found in connection state")
+	if proto == "https" {
+		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "tcp",
+		)
+
+		// Create the http client
+		client := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+			Transport: &http.Transport{
+				TLSClientConfig: e.tlsConfig,
+				Proxy:           http.ProxyFromEnvironment,
+			},
+			Timeout: e.timeout,
+		}
+
+		// Issue a GET request to the target
+		resp, err := client.Get(e.target)
+		if err != nil {
+			log.Errorln(err)
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		// Check if the response from the target is encrypted
+		if resp.TLS == nil {
+			log.Errorln("The response from " + target + " is unencrypted")
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		peerCertificates = resp.TLS.PeerCertificates
+
+	} else if proto == "tcp" {
+		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "https",
+		)
+
+		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: e.timeout}, "tcp", target, e.tlsConfig)
+		if err != nil {
+			log.Errorln(err)
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		state := conn.ConnectionState()
+
+		peerCertificates = state.PeerCertificates
+
+		if len(peerCertificates) < 1 {
+			log.Errorln("No certificates found in connection state for " + target)
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+	} else {
+		log.Errorln("Unrecognised protocol: " + string(proto) + " for target: " + target)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
@@ -111,7 +185,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	)
 
 	// Remove duplicate certificates from the response
-	peerCertificates := uniq(state.PeerCertificates)
+	peerCertificates = uniq(peerCertificates)
 
 	// Loop through returned certificates and create metrics
 	for _, cert := range peerCertificates {
@@ -173,7 +247,6 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config) {
-
 	target := r.URL.Query().Get("target")
 
 	// The following timeout block was taken wholly from the blackbox exporter
@@ -195,13 +268,8 @@ func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config)
 
 	timeout := time.Duration((timeoutSeconds) * 1e9)
 
-	t, err := parseTarget(target)
-	if err != nil {
-		t = target
-	}
-
 	exporter := &Exporter{
-		target:    t,
+		target:    target,
 		timeout:   timeout,
 		tlsConfig: tlsConfig,
 	}
@@ -235,33 +303,25 @@ func contains(certs []*x509.Certificate, cert *x509.Certificate) bool {
 	return false
 }
 
-// parseTarget makes an attempt at converting URLs of the form scheme://host
-// into host:port
-func parseTarget(target string) (parsedTarget string, err error) {
+func parseTarget(target string) (parsedTarget string, proto string, err error) {
 	if !strings.Contains(target, "://") {
 		target = "//" + target
 	}
 
 	u, err := url.Parse(target)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return "", proto, err
 	}
 
-	if u.Port() == "" {
-		switch scheme := u.Scheme; scheme {
-		case "https":
-			parsedTarget = u.Host + ":443"
-		case "ldaps":
-			parsedTarget = u.Host + ":636"
-		default:
-			parsedTarget = u.Host + ":443"
+	if u.Scheme != "" {
+		if u.Scheme == "https" {
+			return u.String(), "https", nil
 		}
-	} else {
-		parsedTarget = u.Host
+		return "", proto, errors.New("can't handle the scheme '" + u.Scheme + "' - try providing the target in the format <host>:<port>")
+	} else if u.Port() == "" {
+		return "https://" + u.Host, "https", nil
 	}
-
-	return parsedTarget, nil
+	return u.Host, "tcp", nil
 }
 
 func init() {

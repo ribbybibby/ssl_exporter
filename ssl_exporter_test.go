@@ -192,6 +192,68 @@ func TestProbeHandlerSpaces(t *testing.T) {
 	}
 }
 
+// Test with a uri protocol the exporter doesn't implement a client for
+func TestProbeHandlerBadScheme(t *testing.T) {
+	rr, err := probe("ldaps://example.com")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	if !ok {
+		t.Errorf("expected `ssl_tls_connect_success 0`")
+	}
+}
+
+// Test that probe uses a http client when the scheme is https://
+func TestProbeHandlerHTTPSClient(t *testing.T) {
+	rr, err := probe("https://example.com")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"https\"} 1")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 1`")
+	}
+
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"tcp\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"tcp\"} 0`")
+	}
+}
+
+// Test that probe uses a tcp client when the host is of the form <host>:<port>
+func TestProbeHandlerTCPClient(t *testing.T) {
+	rr, err := probe("example.com:443")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"tcp\"} 1")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"tcp\"} 1`")
+	}
+
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"https\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 0`")
+	}
+}
+
+// Test that a https client is used when there is no protocol or port in the target address
+func TestProbeHandlerNoProtocolNoPort(t *testing.T) {
+	rr, err := probe("example.com")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"https\"} 1")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 1`")
+	}
+}
+
 // Test against a HTTP server
 func TestProbeHandlerHTTP(t *testing.T) {
 	server, err := serverHTTP()
