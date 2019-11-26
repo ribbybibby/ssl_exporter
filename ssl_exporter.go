@@ -375,12 +375,13 @@ func main() {
 	log.Infoln("Starting "+namespace+"_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
+	//lint:ignore SA1019 because
 	http.Handle(*metricsPath, prometheus.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
 		probeHandler(w, r, tlsConfig)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, _ = w.Write([]byte(`<html>
 						 <head><title>SSL Exporter</title></head>
 						 <body>
 						 <h1>SSL Exporter</h1>
