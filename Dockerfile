@@ -1,4 +1,4 @@
-FROM golang:stretch AS build
+FROM golang:1.13-stretch AS build
 
 ADD . /tmp/ssl_exporter
 
@@ -12,8 +12,8 @@ FROM scratch
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /tmp/ssl_exporter/group \
-                  /tmp/ssl_exporter/passwd \
-                  /etc/
+    /tmp/ssl_exporter/passwd \
+    /etc/
 COPY --from=build /tmp/ssl_exporter/ssl_exporter /
 
 USER ssl:ssl
