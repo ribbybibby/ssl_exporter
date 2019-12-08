@@ -8,21 +8,21 @@ Whatever it is, the SSL exporter gives you visibility over those dimensions at t
 
 ## Table of Contents
 
-   * [SSL Certificate Exporter](#ssl-certificate-exporter)
-      * [Building](#building)
-      * [Docker](#docker)
-      * [Flags](#flags)
-      * [Metrics](#metrics)
-      * [Prometheus](#prometheus)
-         * [Configuration](#configuration)
-         * [Targets](#targets)
-            * [Valid targets](#valid-targets)
-            * [Invalid targets](#invalid-targets)
-         * [Example Queries](#example-queries)
-      * [Client authentication](#client-authentication)
-      * [Proxying](#proxying)
-      * [Limitations](#limitations)
-      * [Acknowledgements](#acknowledgements)
+- [SSL Certificate Exporter](#ssl-certificate-exporter)
+  - [Building](#building)
+  - [Docker](#docker)
+  - [Flags](#flags)
+  - [Metrics](#metrics)
+  - [Prometheus](#prometheus)
+    - [Configuration](#configuration)
+    - [Targets](#targets)
+      - [Valid targets](#valid-targets)
+      - [Invalid targets](#invalid-targets)
+    - [Example Queries](#example-queries)
+  - [Client authentication](#client-authentication)
+  - [Proxying](#proxying)
+  - [Limitations](#limitations)
+  - [Acknowledgements](#acknowledgements)
 
 Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
@@ -123,19 +123,27 @@ If neither are given, the exporter assumes a https connection on port `443` (the
 
 Certificates that expire within 7 days, with Subject Common Name and Subject Alternative Names joined on:
 
-    ((ssl*cert_not_after - time() < 86400 * 7) \_ on (instance,issuer_cn,serial_no) group_left (dnsnames) ssl_cert_subject_alternative_dnsnames) \* on (instance,issuer_cn,serial_no) group_left (subject_cn) ssl_cert_subject_common_name
+```
+((ssl_cert_not_after - time() < 86400 * 7) * on (instance,issuer_cn,serial_no) group_left (dnsnames) ssl_cert_subject_alternative_dnsnames) * on (instance,issuer_cn,serial_no) group_left (subject_cn) ssl_cert_subject_common_name
+```
 
 Only return wildcard certificates that are expiring:
 
-    ((ssl_cert_not_after - time() < 86400 * 7) * on (instance,issuer_cn,serial_no) group_left (subject_cn) ssl_cert_subject_common_name{subject_cn=~"\\*.*"})
+```
+((ssl_cert_not_after - time() < 86400 * 7) * on (instance,issuer_cn,serial_no) group_left (subject_cn) ssl_cert_subject_common_name{subject_cn=~"\\*.*"})
+```
 
 Number of certificates in the chain:
 
-    count(ssl_cert_subject_common_name) by (instance)
+```
+count(ssl_cert_subject_common_name) by (instance)
+```
 
 Identify instances that have failed to create a valid SSL connection:
 
-    ssl_tls_connect_success == 0
+```
+ssl_tls_connect_success == 0
+```
 
 ## Client authentication
 
