@@ -14,9 +14,6 @@
 
 include Makefile.common
 
-STATICCHECK_IGNORE = \
-  github.com/ribbybibby/ssl_exporter/ssl_exporter.go:SA1019 \
-
 DOCKER_IMAGE_NAME ?= ssl-exporter
 
 # Go modules needs the bzr binary because of the dependency on launchpad.net/gocheck.
