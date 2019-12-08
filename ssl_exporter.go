@@ -375,8 +375,7 @@ func main() {
 	log.Infoln("Starting "+namespace+"_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	//lint:ignore SA1019 because
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
 		probeHandler(w, r, tlsConfig)
 	})
