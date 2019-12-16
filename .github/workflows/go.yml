@@ -1,0 +1,29 @@
+name: Go
+on: [push, pull_request]
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.13' ]
+
+    steps:
+
+    - name: Set up Go ${{ matrix.go }}
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go }}
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+
+    # Go modules needs the bzr binary because of the dependency on launchpad.net/gocheck.
+    # https://github.com/actions/setup-go/issues/18
+    - name: Prepare
+      run: sudo apt-get install bzr
+
+    - name: Build
+      run: make
