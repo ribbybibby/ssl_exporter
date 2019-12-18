@@ -36,7 +36,7 @@ Similarly to the blackbox_exporter, visiting [http://localhost:9219/probe?target
 ## Docker
 
     docker pull ribbybibby/ssl-exporter
-    docker run -p 9219:9219 ssl-exporter:latest <flags>
+    docker run -p 9219:9219 ribbybibby/ssl-exporter:latest <flags>
 
 ## Flags
 
