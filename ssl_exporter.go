@@ -127,7 +127,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		// Issue a GET request to the target
-		resp, err := client.Get(e.target)
+		resp, err := client.Get(target)
 		if err != nil {
 			log.Errorln(err)
 			ch <- prometheus.MustNewConstMetric(
