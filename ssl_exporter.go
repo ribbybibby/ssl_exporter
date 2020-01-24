@@ -84,6 +84,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- tlsConnectSuccess
 	ch <- clientProtocol
 	ch <- notAfter
+	ch <- notBefore
 	ch <- commonName
 	ch <- subjectAlernativeDNSNames
 	ch <- subjectAlernativeIPs
