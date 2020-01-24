@@ -38,37 +38,12 @@ var (
 	notBefore = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_not_before"),
 		"NotBefore expressed as a Unix Epoch Time",
-		[]string{"serial_no", "issuer_cn"}, nil,
+		[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
 	notAfter = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_not_after"),
 		"NotAfter expressed as a Unix Epoch Time",
-		[]string{"serial_no", "issuer_cn"}, nil,
-	)
-	commonName = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cert_subject_common_name"),
-		"Subject Common Name",
-		[]string{"serial_no", "issuer_cn", "subject_cn"}, nil,
-	)
-	subjectAlernativeDNSNames = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cert_subject_alternative_dnsnames"),
-		"Subject Alternative DNS Names",
-		[]string{"serial_no", "issuer_cn", "dnsnames"}, nil,
-	)
-	subjectAlernativeIPs = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cert_subject_alternative_ips"),
-		"Subject Alternative IPs",
-		[]string{"serial_no", "issuer_cn", "ips"}, nil,
-	)
-	subjectAlernativeEmailAddresses = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cert_subject_alternative_emails"),
-		"Subject Alternative Email Addresses",
-		[]string{"serial_no", "issuer_cn", "emails"}, nil,
-	)
-	subjectOrganizationUnits = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cert_subject_organization_units"),
-		"Subject Organization Units",
-		[]string{"serial_no", "issuer_cn", "subject_ou"}, nil,
+		[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
 )
 
@@ -85,11 +60,6 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- clientProtocol
 	ch <- notAfter
 	ch <- notBefore
-	ch <- commonName
-	ch <- subjectAlernativeDNSNames
-	ch <- subjectAlernativeIPs
-	ch <- subjectAlernativeEmailAddresses
-	ch <- subjectOrganizationUnits
 }
 
 // Collect metrics
@@ -190,58 +160,44 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Loop through returned certificates and create metrics
 	for _, cert := range peerCertificates {
+		var DNSNamesLabel, emailsLabel, ipsLabel, OULabel string
 
-		subjectCN := cert.Subject.CommonName
-		issuerCN := cert.Issuer.CommonName
-		subjectDNSNames := cert.DNSNames
-		subjectEmails := cert.EmailAddresses
-		subjectIPs := cert.IPAddresses
-		serialNum := cert.SerialNumber.String()
-		subjectOUs := cert.Subject.OrganizationalUnit
+		commonName := cert.Subject.CommonName
+		issuerCommonName := cert.Issuer.CommonName
+		serialNo := cert.SerialNumber.String()
+		DNSNames := cert.DNSNames
+		emailAddresses := cert.EmailAddresses
+		IPAddresses := cert.IPAddresses
+		OU := cert.Subject.OrganizationalUnit
+
+		if len(DNSNames) > 0 {
+			DNSNamesLabel = "," + strings.Join(DNSNames, ",") + ","
+		}
+
+		if len(emailAddresses) > 0 {
+			emailsLabel = "," + strings.Join(DNSNames, ",") + ","
+		}
+
+		if len(IPAddresses) > 0 {
+			ipsLabel = ","
+			for _, ip := range IPAddresses {
+				ipsLabel = ipsLabel + ip.String() + ","
+			}
+		}
+
+		if len(OU) > 0 {
+			OULabel = "," + strings.Join(OU, ",") + ","
+		}
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), serialNum, issuerCN,
+				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), serialNo, issuerCommonName, commonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
 			)
 		}
 
 		if !cert.NotBefore.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), serialNum, issuerCN,
-			)
-		}
-
-		if subjectCN != "" {
-			ch <- prometheus.MustNewConstMetric(
-				commonName, prometheus.GaugeValue, 1, serialNum, issuerCN, subjectCN,
-			)
-		}
-
-		if len(subjectDNSNames) > 0 {
-			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeDNSNames, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectDNSNames, ",")+",",
-			)
-		}
-
-		if len(subjectEmails) > 0 {
-			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeEmailAddresses, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectEmails, ",")+",",
-			)
-		}
-
-		if len(subjectIPs) > 0 {
-			i := ","
-			for _, ip := range subjectIPs {
-				i = i + ip.String() + ","
-			}
-			ch <- prometheus.MustNewConstMetric(
-				subjectAlernativeIPs, prometheus.GaugeValue, 1, serialNum, issuerCN, i,
-			)
-		}
-
-		if len(subjectOUs) > 0 {
-			ch <- prometheus.MustNewConstMetric(
-				subjectOrganizationUnits, prometheus.GaugeValue, 1, serialNum, issuerCN, ","+strings.Join(subjectOUs, ",")+",",
+				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), serialNo, issuerCommonName, commonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
 			)
 		}
 	}
