@@ -274,6 +274,46 @@ func TestProbeHandlerHTTP(t *testing.T) {
 	server.Close()
 }
 
+// Test that the exporter returns the correct notAfter value
+func TestProbeHandlerNotAfter(t *testing.T) {
+	server, err := server()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rr, err := probe(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_after{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09")
+	if !ok {
+		t.Errorf("expected `ssl_cert_not_after{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09`")
+	}
+
+	server.Close()
+}
+
+// Test that the exporter returns the correct notBefore value
+func TestProbeHandlerNotBefore(t *testing.T) {
+	server, err := server()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rr, err := probe(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_before{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09")
+	if !ok {
+		t.Errorf("expected `ssl_cert_not_before{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09`")
+	}
+
+	server.Close()
+}
+
 // Test that the exporter returns the correct list of IPs
 func TestProbeHandlerIPs(t *testing.T) {
 	server, err := server()
