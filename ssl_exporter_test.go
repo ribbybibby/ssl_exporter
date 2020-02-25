@@ -326,9 +326,9 @@ func TestProbeHandlerIPs(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_cert_subject_alternative_ips{ips=\",127.0.0.1,\"")
+	ok := strings.Contains(rr.Body.String(), "ips=\",127.0.0.1,\"")
 	if !ok {
-		t.Errorf("expected `ssl_cert_subject_alternative_ips{ips=\",127.0.0.1,\"`")
+		t.Errorf("expected `ips=\",127.0.0.1,\"`")
 	}
 
 	server.Close()
@@ -346,9 +346,9 @@ func TestProbeHandlerCommonName(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	log.Println(rr.Body.String())
-	ok := strings.Contains(rr.Body.String(), "ssl_cert_subject_common_name{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\",subject_cn=\"cert.ribbybibby.me\"} 1")
+	ok := strings.Contains(rr.Body.String(), "cn=\"cert.ribbybibby.me\"")
 	if !ok {
-		t.Errorf("expected `ssl_cert_subject_common_name{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\",subject_cn=\"cert.ribbybibby.me\"} 1`")
+		t.Errorf("expected `cn=\"cert.ribbybibby.me\"`")
 	}
 
 	server.Close()
@@ -366,9 +366,9 @@ func TestProbeHandlerDNSNames(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_cert_subject_alternative_dnsnames{dnsnames=\",cert.ribbybibby.me,localhost,\"")
+	ok := strings.Contains(rr.Body.String(), "dnsnames=\",cert.ribbybibby.me,localhost,\"")
 	if !ok {
-		t.Errorf("expected `ssl_cert_subject_alternative_dnsnames{dnsnames=\",cert.ribbybibby.me,localhost,\"`")
+		t.Errorf("expected `dnsnames=\",cert.ribbybibby.me,localhost,\"`")
 	}
 
 	server.Close()
