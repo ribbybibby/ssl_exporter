@@ -286,9 +286,9 @@ func TestProbeHandlerNotAfter(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_after{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09")
+	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_after{cn=\"cert.ribbybibby.me\",dnsnames=\",cert.ribbybibby.me,localhost,\",emails=\"\",ips=\",127.0.0.1,\",issuer_cn=\"ribbybibby.me\",ou=\"\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09")
 	if !ok {
-		t.Errorf("expected `ssl_cert_not_after{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09`")
+		t.Errorf("expected `ssl_cert_not_after{cn=\"cert.ribbybibby.me\",dnsnames=\",cert.ribbybibby.me,localhost,\",emails=\"\",ips=\",127.0.0.1,\",issuer_cn=\"ribbybibby.me\",ou=\"\",serial_no=\"318581226177353336430613662595136105644\"} 1.585381947e+09`")
 	}
 
 	server.Close()
@@ -306,9 +306,9 @@ func TestProbeHandlerNotBefore(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_before{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09")
+	ok := strings.Contains(rr.Body.String(), "ssl_cert_not_before{cn=\"cert.ribbybibby.me\",dnsnames=\",cert.ribbybibby.me,localhost,\",emails=\"\",ips=\",127.0.0.1,\",issuer_cn=\"ribbybibby.me\",ou=\"\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09")
 	if !ok {
-		t.Errorf("expected `ssl_cert_not_before{issuer_cn=\"ribbybibby.me\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09`")
+		t.Errorf("expected `ssl_cert_not_before{cn=\"cert.ribbybibby.me\",dnsnames=\",cert.ribbybibby.me,localhost,\",emails=\"\",ips=\",127.0.0.1,\",issuer_cn=\"ribbybibby.me\",ou=\"\",serial_no=\"318581226177353336430613662595136105644\"} 1.553845947e+09`")
 	}
 
 	server.Close()
