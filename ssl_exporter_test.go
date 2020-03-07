@@ -217,6 +217,34 @@ func TestProbeHandlerHTTPSClient(t *testing.T) {
 		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 1`")
 	}
 
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"smtp\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"smtp\"} 0`")
+	}
+
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"tcp\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"tcp\"} 0`")
+	}
+}
+
+// Test that probe uses a smtp client when the scheme is smtp://
+func TestProbeHandlerSMTPClient(t *testing.T) {
+	rr, err := probe("smtp://example.com")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"smtp\"} 1")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"smtp\"} 1`")
+	}
+
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"https\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 0`")
+	}
+
 	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"tcp\"} 0")
 	if !ok {
 		t.Errorf("expected `ssl_client_protocol{protocol=\"tcp\"} 0`")
@@ -238,6 +266,11 @@ func TestProbeHandlerTCPClient(t *testing.T) {
 	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"https\"} 0")
 	if !ok {
 		t.Errorf("expected `ssl_client_protocol{protocol=\"https\"} 0`")
+	}
+
+	ok = strings.Contains(rr.Body.String(), "ssl_client_protocol{protocol=\"smtp\"} 0")
+	if !ok {
+		t.Errorf("expected `ssl_client_protocol{protocol=\"smtp\"} 0`")
 	}
 }
 

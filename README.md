@@ -114,15 +114,17 @@ scrape_configs:
 
 ### Targets
 
-The exporter uses the provided uri to decide which client (http or tcp) to use
-when connecting to the target. The uri must contain either a protocol scheme
-(`https://`), a port (`:443`), or both (`https://example.com:443`).
+The exporter uses the provided uri to decide which client (http, smtp or tcp)
+to use when connecting to the target. The uri must contain either a protocol
+scheme (`https://` or `smtp://`), a port (`:443`), or both
+(`https://example.com:443`).
 
 If the `https://` scheme is provided then the exporter will use a http client to
 connect to the target. This allows you to take advantage of some features not
-available when using tcp, like host-based proxying. The exporter doesn't
-understand any other L7 protocols, so it will produce an error for others, like
-`ldaps://` or `ftps://`.
+available when using tcp, like host-based proxying.
+
+The exporter doesn't understand any other L7 protocols, so it will produce an
+error for others, like `ldaps://` or `ftps://`.
 
 If there's only a port, then a tcp client is used to make the TLS connection.
 This should allow you to connect to any TLS target, regardless of L7 protocol.
@@ -134,6 +136,8 @@ most common case).
 
 - `https://example.com`
 - `https://example.com:443`
+- `smtp://example.com`
+- `smtp://example.com:443`
 - `example.com:443`
 - `example.com:636`
 - `example.com`

@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"strconv"
 	"strings"
@@ -82,6 +83,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	if proto == "https" {
 		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "smtp",
+		)
+		ch <- prometheus.MustNewConstMetric(
 			clientProtocol, prometheus.GaugeValue, 0, "tcp",
 		)
 
@@ -117,10 +121,73 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		peerCertificates = resp.TLS.PeerCertificates
+	} else if proto == "smtp" {
+		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "https",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "tcp",
+		)
 
+		// Dial using the tcp connection in order to support timeout
+		conn, err := net.DialTimeout("tcp", target, e.timeout)
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		// Connect to SMTP server at target
+		client, err := smtp.NewClient(conn, target)
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		defer func() {
+			if err := client.Quit(); err != nil {
+				log.Errorln(err)
+			}
+		}()
+
+		smtpTLSConfig := tls.Config{
+			InsecureSkipVerify: e.tlsConfig.InsecureSkipVerify,
+			Certificates:       e.tlsConfig.Certificates,
+			RootCAs:            e.tlsConfig.RootCAs,
+		}
+		if !smtpTLSConfig.InsecureSkipVerify {
+			// ServerName is required when InsecureSkipVerify isn't set
+			smtpTLSConfig.ServerName = strings.Split(target, ":")[0]
+		}
+
+		err = client.StartTLS(&smtpTLSConfig)
+		if err != nil {
+			log.Errorln(err)
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		state, ok := client.TLSConnectionState()
+		if !ok {
+			log.Errorln("The TLS connectinon state for " + target + " is not ok")
+			ch <- prometheus.MustNewConstMetric(
+				tlsConnectSuccess, prometheus.GaugeValue, 0,
+			)
+			return
+		}
+
+		peerCertificates = state.PeerCertificates
 	} else if proto == "tcp" {
 		ch <- prometheus.MustNewConstMetric(
 			clientProtocol, prometheus.GaugeValue, 0, "https",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			clientProtocol, prometheus.GaugeValue, 0, "smtp",
 		)
 
 		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: e.timeout}, "tcp", target, e.tlsConfig)
@@ -273,6 +340,8 @@ func parseTarget(target string) (parsedTarget string, proto string, err error) {
 	if u.Scheme != "" {
 		if u.Scheme == "https" {
 			return u.String(), "https", nil
+		} else if u.Scheme == "smtp" {
+			return u.Host, "smtp", nil
 		}
 		return "", proto, errors.New("can't handle the scheme '" + u.Scheme + "' - try providing the target in the format <host>:<port>")
 	} else if u.Port() == "" {
