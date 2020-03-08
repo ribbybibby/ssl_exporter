@@ -30,6 +30,11 @@ var (
 		"If the TLS connection was a success",
 		nil, nil,
 	)
+	tlsVersion = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "tls_version_info"),
+		"The TLS version used",
+		[]string{"version"}, nil,
+	)
 	clientProtocol = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "client_protocol"),
 		"The protocol used by the exporter to connect to the target",
@@ -64,7 +69,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect metrics
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	var peerCertificates []*x509.Certificate
+	var state tls.ConnectionState
 
 	// Parse the target and return the appropriate connection protocol and target address
 	target, proto, err := parseTarget(e.target)
@@ -116,7 +121,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 
-		peerCertificates = resp.TLS.PeerCertificates
+		state = *resp.TLS
 
 	} else if proto == "tcp" {
 		ch <- prometheus.MustNewConstMetric(
@@ -132,19 +137,24 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 
-		state := conn.ConnectionState()
-
-		peerCertificates = state.PeerCertificates
-
-		if len(peerCertificates) < 1 {
-			log.Errorln("No certificates found in connection state for " + target)
-			ch <- prometheus.MustNewConstMetric(
-				tlsConnectSuccess, prometheus.GaugeValue, 0,
-			)
-			return
-		}
+		state = conn.ConnectionState()
 	} else {
 		log.Errorln("Unrecognised protocol: " + string(proto) + " for target: " + target)
+		ch <- prometheus.MustNewConstMetric(
+			tlsConnectSuccess, prometheus.GaugeValue, 0,
+		)
+		return
+	}
+
+	// Get the TLS version from the connection state and export it as a metric
+	ch <- prometheus.MustNewConstMetric(
+		tlsVersion, prometheus.GaugeValue, 1, getTLSVersion(&state),
+	)
+
+	// Retrieve certificates from the connection state
+	peerCertificates := state.PeerCertificates
+	if len(peerCertificates) < 1 {
+		log.Errorln("No certificates found in connection state for " + target)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
@@ -279,6 +289,21 @@ func parseTarget(target string) (parsedTarget string, proto string, err error) {
 		return "https://" + u.Host, "https", nil
 	}
 	return u.Host, "tcp", nil
+}
+
+func getTLSVersion(state *tls.ConnectionState) string {
+	switch state.Version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return "unknown"
+	}
 }
 
 func init() {

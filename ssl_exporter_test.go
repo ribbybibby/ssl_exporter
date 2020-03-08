@@ -454,6 +454,26 @@ func TestProbeHandlerExpiredInsecure(t *testing.T) {
 	server.Close()
 }
 
+// Test against a server with TLS v1.2
+func TestProbeHandlerTLSVersion12(t *testing.T) {
+	server, err := serverTLSVersion12()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rr, err := probe(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ok := strings.Contains(rr.Body.String(), "ssl_tls_version_info{version=\"TLS 1.2\"} 1")
+	if !ok {
+		t.Errorf("expected `ssl_tls_version_info{version=\"TLS 1.2\"} 1`")
+	}
+
+	server.Close()
+}
+
 func probe(url string) (*httptest.ResponseRecorder, error) {
 	uri := "/probe?target=" + url
 	req, err := http.NewRequest("GET", uri, nil)
@@ -612,6 +632,26 @@ func serverHTTP() (*httptest.Server, error) {
 	}))
 
 	server.Start()
+	return server, nil
+}
+
+func serverTLSVersion12() (*httptest.Server, error) {
+	serverCertificate, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
+	if err != nil {
+		return nil, err
+	}
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello world")
+	}))
+
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{serverCertificate},
+		MinVersion:   tls.VersionTLS12,
+		MaxVersion:   tls.VersionTLS12,
+	}
+
+	server.StartTLS()
 	return server, nil
 }
 

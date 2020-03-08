@@ -85,6 +85,7 @@ metric indicates if the probe has been successful.
 | ssl_cert_not_before     | The date before which the certificate is not valid. Expressed as a Unix Epoch Time. | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
 | ssl_client_protocol     | The protocol used by the exporter to connect to the target. Boolean.                | protocol                                            |
 | ssl_tls_connect_success | Was the TLS connection successful? Boolean.                                         |                                                     |
+| ssl_tls_version_info    | The TLS version used. Always 1.                                                     | version                                             |
 
 ## Prometheus
 
