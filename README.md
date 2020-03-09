@@ -209,6 +209,11 @@ For instance:
 In order to use the https client, targets must be provided to the exporter with
 the protocol in the uri (`https://<host>:<optional port>`).
 
+## Grafana
+
+You can find a simple dashboard [here](grafana/dashboard.json) that tracks
+certificate expiration dates and target connection errors.
+
 ## Acknowledgements
 
 The overall structure and implementation of this exporter is based on the
