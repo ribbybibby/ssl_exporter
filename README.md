@@ -48,10 +48,17 @@ Similarly to the blackbox_exporter, visiting
 will return certificate metrics for example.com. The `ssl_tls_connect_success`
 metric indicates if the probe has been successful.
 
-## Docker
+### Docker
 
     docker pull ribbybibby/ssl-exporter
     docker run -p 9219:9219 ribbybibby/ssl-exporter:latest <flags>
+
+### Release process
+
+- [This github action](.github/workflows/release.yaml) will add a changelog and
+  upload binaries in response to a release being created in Github
+- Dockerhub will build and tag a new container image in response to tags of the
+  format `/^v[0-9.]+$/`
 
 ## Flags
 
@@ -201,12 +208,6 @@ For instance:
 
 In order to use the https client, targets must be provided to the exporter with
 the protocol in the uri (`https://<host>:<optional port>`).
-
-## Limitations
-
-I've only exported a subset of the information you could extract from a
-certificate. It would be simple to add more, for instance organisational
-information, if there's a need.
 
 ## Acknowledgements
 
