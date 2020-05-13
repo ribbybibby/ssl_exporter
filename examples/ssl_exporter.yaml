@@ -1,8 +1,16 @@
 modules:
+  https:
+    prober: https
   https_insecure:
     prober: https
     tls_config:
       insecure_skip_verify: true
+  https_proxy:
+    prober: https
+    https:
+      proxy_url: "socks5://localhost:8123"
+  tcp:
+    prober: tcp
   tcp_servername:
     prober: tcp
     tls_config:

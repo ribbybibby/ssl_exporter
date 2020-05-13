@@ -3,6 +3,8 @@ package test
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,8 +12,7 @@ import (
 )
 
 // SetupHTTPSServer sets up a server for testing with a generated cert and key
-// pair. It returns the server, the cert and key, the path to the ca file and a
-// function to clean up the server.
+// pair
 func SetupHTTPSServer() (*httptest.Server, []byte, []byte, string, func(), error) {
 	var teardown func()
 
@@ -39,4 +40,51 @@ func SetupHTTPSServer() (*httptest.Server, []byte, []byte, string, func(), error
 	}
 
 	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+}
+
+// SetupHTTPProxyServer sets up a proxy server
+func SetupHTTPProxyServer() (*httptest.Server, error) {
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodConnect {
+			destConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			hijacker, ok := w.(http.Hijacker)
+			if !ok {
+				http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
+				return
+			}
+			clientConn, _, err := hijacker.Hijack()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			}
+			go func() {
+				defer destConn.Close()
+				defer clientConn.Close()
+
+				_, err := io.Copy(destConn, clientConn)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+
+			}()
+			go func() {
+				defer clientConn.Close()
+				defer destConn.Close()
+
+				_, err := io.Copy(clientConn, destConn)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+
+			}()
+		} else {
+			fmt.Fprintln(w, "Hello world")
+		}
+	}))
+
+	return server, nil
 }

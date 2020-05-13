@@ -409,6 +409,87 @@ func TestProbeHandlerDefaultModule(t *testing.T) {
 	}
 }
 
+func TestProbeHandlerProxy(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLS()
+	defer server.Close()
+
+	// Test with a proxy that doesn't exist first
+	badProxyURL, err := url.Parse("http://localhost:6666")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"https": config.Module{
+				Prober: "https",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+				HTTPS: config.HTTPSProbe{
+					// Check with a bad proxy url initially
+					ProxyURL: config.URL{URL: badProxyURL},
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.URL, "https", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check success metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 0`")
+	}
+
+	// Test with an actual proxy server
+	proxyServer, err := test.SetupHTTPProxyServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	proxyServer.Start()
+	defer proxyServer.Close()
+
+	proxyURL, err := url.Parse(proxyServer.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	conf = &config.Config{
+		Modules: map[string]config.Module{
+			"https": config.Module{
+				Prober: "https",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+				HTTPS: config.HTTPSProbe{
+					// Check with a valid URL
+					ProxyURL: config.URL{URL: proxyURL},
+				},
+			},
+		},
+	}
+
+	rr, err = probe(server.URL, "https", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check success metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 1`")
+	}
+}
+
 func probe(target, module string, conf *config.Config) (*httptest.ResponseRecorder, error) {
 	uri := "/probe?target=" + target
 	if module != "" {

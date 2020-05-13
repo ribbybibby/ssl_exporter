@@ -36,13 +36,18 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tl
 		return nil, err
 	}
 
+	proxy := http.ProxyFromEnvironment
+	if module.HTTPS.ProxyURL.URL != nil {
+		proxy = http.ProxyURL(module.HTTPS.ProxyURL.URL)
+	}
+
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
 			TLSClientConfig:   tlsConfig,
-			Proxy:             http.ProxyFromEnvironment,
+			Proxy:             proxy,
 			DisableKeepAlives: true,
 		},
 		Timeout: timeout,

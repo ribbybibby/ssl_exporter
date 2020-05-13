@@ -312,3 +312,59 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 		t.Fatalf("expected state but got nil")
 	}
 }
+
+// TestProbeHTTPSProxy tests the proxy_url field in the configuration
+func TestProbeHTTPSProxy(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	proxyServer, err := test.SetupHTTPProxyServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	proxyServer.Start()
+	defer proxyServer.Close()
+
+	proxyURL, err := url.Parse(proxyServer.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	badProxyURL, err := url.Parse("http://localhost:6666")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+		HTTPS: config.HTTPSProbe{
+			// Test with a bad proxy url first
+			ProxyURL: config.URL{URL: badProxyURL},
+		},
+	}
+
+	_, err = ProbeHTTPS(server.URL, module, 5*time.Second)
+	if err == nil {
+		t.Fatalf("expected error but err was nil")
+	}
+
+	// Test with the proxy url, this shouldn't return an error
+	module.HTTPS.ProxyURL = config.URL{URL: proxyURL}
+
+	state, err := ProbeHTTPS(server.URL, module, 5*time.Second)
+	if err != nil {
+		t.Fatalf("error: %s", err)
+	}
+	if state == nil {
+		t.Fatalf("expected state but got nil")
+	}
+}

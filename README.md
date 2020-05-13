@@ -156,7 +156,10 @@ modules: [<module>]
 prober: <prober_string>
 
 # Configuration for TLS
-tls_config: <tls_config>
+[ tls_config: <tls_config> ]
+
+# The specific probe configuration
+[ https: <https_probe> ]
 ```
 
 #### <tls_config>
@@ -176,6 +179,13 @@ tls_config: <tls_config>
 
 # Used to verify the hostname for the targets.
 [ server_name: <string> ]
+```
+
+#### <https_probe>
+
+```
+# HTTP proxy server to use to connect to the targets.
+[ proxy_url: <string> ]
 ```
 
 ## Example Queries
@@ -213,6 +223,10 @@ For instance:
 
     $ export HTTPS_PROXY=localhost:8888
     $ ./ssl_exporter
+
+Or, you can set the `proxy_url` option in the module.
+
+The latter takes precedence.
 
 ## Grafana
 
