@@ -154,3 +154,81 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 		t.Fatalf("expected state but got nil")
 	}
 }
+
+// TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
+func TestProbeTCPStartTLSSMTP(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartSMTP()
+	defer server.Close()
+
+	module := config.Module{
+		TCP: config.TCPProbe{
+			StartTLS: "smtp",
+		},
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+}
+
+// TestProbeTCPStartTLSFTP tests STARTTLS against a mock FTP server
+func TestProbeTCPStartTLSFTP(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartFTP()
+	defer server.Close()
+
+	module := config.Module{
+		TCP: config.TCPProbe{
+			StartTLS: "ftp",
+		},
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+}
+
+// TestProbeTCPStartTLSIMAP tests STARTTLS against a mock IMAP server
+func TestProbeTCPStartTLSIMAP(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartIMAP()
+	defer server.Close()
+
+	module := config.Module{
+		TCP: config.TCPProbe{
+			StartTLS: "imap",
+		},
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+}

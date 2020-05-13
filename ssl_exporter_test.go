@@ -57,18 +57,8 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 	}
 
 	// Check notAfter and notBefore metrics
-	block, _ := pem.Decode(certPEM)
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
+	if err := checkDates(certPEM, rr.Body.String()); err != nil {
 		t.Errorf(err.Error())
-	}
-	notAfter := strconv.FormatFloat(float64(cert.NotAfter.UnixNano()/1e9), 'g', -1, 64)
-	if ok := strings.Contains(rr.Body.String(), "ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notAfter); !ok {
-		t.Errorf("expected `ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notAfter + "`")
-	}
-	notBefore := strconv.FormatFloat(float64(cert.NotBefore.UnixNano()/1e9), 'g', -1, 64)
-	if ok := strings.Contains(rr.Body.String(), "ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notBefore); !ok {
-		t.Errorf("expected `ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notBefore + "`")
 	}
 
 	// Check TLS version metric
@@ -237,18 +227,8 @@ func TestProbeHandlerTCP(t *testing.T) {
 	}
 
 	// Check notAfter and notBefore metrics
-	block, _ := pem.Decode(certPEM)
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
+	if err := checkDates(certPEM, rr.Body.String()); err != nil {
 		t.Errorf(err.Error())
-	}
-	notAfter := strconv.FormatFloat(float64(cert.NotAfter.UnixNano()/1e9), 'g', -1, 64)
-	if ok := strings.Contains(rr.Body.String(), "ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notAfter); !ok {
-		t.Errorf("expected `ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notAfter + "`")
-	}
-	notBefore := strconv.FormatFloat(float64(cert.NotBefore.UnixNano()/1e9), 'g', -1, 64)
-	if ok := strings.Contains(rr.Body.String(), "ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notBefore); !ok {
-		t.Errorf("expected `ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notBefore + "`")
 	}
 }
 
@@ -488,6 +468,162 @@ func TestProbeHandlerProxy(t *testing.T) {
 	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
 		t.Errorf("expected `ssl_tls_connect_success 1`")
 	}
+}
+
+// TestProbeHandlerTCPStartTLSSMTP tests STARTTLS with a smtp server
+func TestProbeHandlerTCPStartTLSSMTP(t *testing.T) {
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartSMTP()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"smtp": config.Module{
+				Prober: "tcp",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+				TCP: config.TCPProbe{
+					StartTLS: "smtp",
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "smtp", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check success metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 1`")
+	}
+
+	// Check probe metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"tcp\"} 1"); !ok {
+		t.Errorf("expected `ssl_prober{prober=\"tcp\"} 1`")
+	}
+
+	// Check notAfter and notBefore metrics
+	if err := checkDates(certPEM, rr.Body.String()); err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+// TestProbeHandlerTCPStartTLSFTP tests STARTTLS with a ftp server
+func TestProbeHandlerTCPStartTLSFTP(t *testing.T) {
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartFTP()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"ftp": config.Module{
+				Prober: "tcp",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+				TCP: config.TCPProbe{
+					StartTLS: "ftp",
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "ftp", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check success metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 1`")
+	}
+
+	// Check probe metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"tcp\"} 1"); !ok {
+		t.Errorf("expected `ssl_prober{prober=\"tcp\"} 1`")
+	}
+
+	// Check notAfter and notBefore metrics
+	if err := checkDates(certPEM, rr.Body.String()); err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+// TestProbeHandlerTCPStartTLSIMAP tests STARTTLS with an imap server
+func TestProbeHandlerTCPStartTLSIMAP(t *testing.T) {
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartIMAP()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"imap": config.Module{
+				Prober: "tcp",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+				TCP: config.TCPProbe{
+					StartTLS: "imap",
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "imap", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check success metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 1`")
+	}
+
+	// Check probe metric
+	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"tcp\"} 1"); !ok {
+		t.Errorf("expected `ssl_prober{prober=\"tcp\"} 1`")
+	}
+
+	// Check notAfter and notBefore metrics
+	if err := checkDates(certPEM, rr.Body.String()); err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+func checkDates(certPEM []byte, body string) error {
+	// Check notAfter and notBefore metrics
+	block, _ := pem.Decode(certPEM)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return err
+	}
+	notAfter := strconv.FormatFloat(float64(cert.NotAfter.UnixNano()/1e9), 'g', -1, 64)
+	if ok := strings.Contains(body, "ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notAfter); !ok {
+		return fmt.Errorf("expected `ssl_cert_not_after{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notAfter + "`")
+	}
+	notBefore := strconv.FormatFloat(float64(cert.NotBefore.UnixNano()/1e9), 'g', -1, 64)
+	if ok := strings.Contains(body, "ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notBefore); !ok {
+		return fmt.Errorf("expected `ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notBefore + "`")
+	}
+	return nil
 }
 
 func probe(target, module string, conf *config.Config) (*httptest.ResponseRecorder, error) {
