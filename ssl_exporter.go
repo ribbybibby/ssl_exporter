@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -96,8 +97,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 				return http.ErrUseLastResponse
 			},
 			Transport: &http.Transport{
-				TLSClientConfig: e.tlsConfig,
-				Proxy:           http.ProxyFromEnvironment,
+				TLSClientConfig:   e.tlsConfig,
+				Proxy:             http.ProxyFromEnvironment,
+				DisableKeepAlives: true,
 			},
 			Timeout: e.timeout,
 		}
@@ -111,6 +113,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			)
 			return
 		}
+		defer func() {
+			_, err := io.Copy(ioutil.Discard, resp.Body)
+			if err != nil {
+				log.Errorln(err)
+			}
+			resp.Body.Close()
+		}()
 
 		// Check if the response from the target is encrypted
 		if resp.TLS == nil {
@@ -136,6 +145,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			)
 			return
 		}
+		defer conn.Close()
 
 		state = conn.ConnectionState()
 	} else {
