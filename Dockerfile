@@ -1,4 +1,4 @@
-FROM golang:1.13-stretch AS build
+FROM golang:1.14-stretch AS build
 
 ADD . /tmp/ssl_exporter
 

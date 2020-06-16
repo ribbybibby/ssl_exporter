@@ -1,0 +1,22 @@
+dist: bin
+builds:
+  - binary: ssl_exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+    flags:
+      - -v
+    ldflags: |
+      -X github.com/prometheus/common/version.Version={{.Env.APP_VERSION}}
+      -X github.com/prometheus/common/version.Revision={{.Env.APP_REVISION}}
+      -X github.com/prometheus/common/version.Branch={{.Env.APP_BRANCH}}
+      -X github.com/prometheus/common/version.BuildUser={{.Env.APP_USER}}@{{.Env.APP_HOST}}
+      -X github.com/prometheus/common/version.BuildDate={{.Env.APP_BUILD_DATE}}
+release:
+  github:
+    owner: ribbybibby
+    name: ssl_exporter
