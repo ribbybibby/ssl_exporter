@@ -195,7 +195,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		if len(emailAddresses) > 0 {
-			emailsLabel = "," + strings.Join(DNSNames, ",") + ","
+			emailsLabel = "," + strings.Join(emailAddresses, ",") + ","
 		}
 
 		if len(IPAddresses) > 0 {
