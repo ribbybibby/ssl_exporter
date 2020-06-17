@@ -3,13 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"github.com/ribbybibby/ssl_exporter/config"
+	"github.com/ribbybibby/ssl_exporter/prober"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -36,10 +33,10 @@ var (
 		"The TLS version used",
 		[]string{"version"}, nil,
 	)
-	clientProtocol = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "client_protocol"),
-		"The protocol used by the exporter to connect to the target",
-		[]string{"protocol"}, nil,
+	proberType = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "prober"),
+		"The prober used by the exporter to connect to the target",
+		[]string{"prober"}, nil,
 	)
 	notBefore = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "cert_not_before"),
@@ -55,101 +52,29 @@ var (
 
 // Exporter is the exporter type...
 type Exporter struct {
-	target    string
-	timeout   time.Duration
-	tlsConfig *tls.Config
+	target  string
+	prober  prober.ProbeFn
+	timeout time.Duration
+	module  config.Module
 }
 
 // Describe metrics
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- tlsConnectSuccess
-	ch <- clientProtocol
+	ch <- tlsVersion
+	ch <- proberType
 	ch <- notAfter
 	ch <- notBefore
 }
 
 // Collect metrics
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	var state tls.ConnectionState
-
-	// Parse the target and return the appropriate connection protocol and target address
-	target, proto, err := parseTarget(e.target)
-	if err != nil {
-		log.Errorln(err)
-		ch <- prometheus.MustNewConstMetric(
-			tlsConnectSuccess, prometheus.GaugeValue, 0,
-		)
-		return
-	}
-
 	ch <- prometheus.MustNewConstMetric(
-		clientProtocol, prometheus.GaugeValue, 1, proto,
+		proberType, prometheus.GaugeValue, 1, e.module.Prober,
 	)
 
-	if proto == "https" {
-		ch <- prometheus.MustNewConstMetric(
-			clientProtocol, prometheus.GaugeValue, 0, "tcp",
-		)
-
-		// Create the http client
-		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-			Transport: &http.Transport{
-				TLSClientConfig:   e.tlsConfig,
-				Proxy:             http.ProxyFromEnvironment,
-				DisableKeepAlives: true,
-			},
-			Timeout: e.timeout,
-		}
-
-		// Issue a GET request to the target
-		resp, err := client.Get(target)
-		if err != nil {
-			log.Errorln(err)
-			ch <- prometheus.MustNewConstMetric(
-				tlsConnectSuccess, prometheus.GaugeValue, 0,
-			)
-			return
-		}
-		defer func() {
-			_, err := io.Copy(ioutil.Discard, resp.Body)
-			if err != nil {
-				log.Errorln(err)
-			}
-			resp.Body.Close()
-		}()
-
-		// Check if the response from the target is encrypted
-		if resp.TLS == nil {
-			log.Errorln("The response from " + target + " is unencrypted")
-			ch <- prometheus.MustNewConstMetric(
-				tlsConnectSuccess, prometheus.GaugeValue, 0,
-			)
-			return
-		}
-
-		state = *resp.TLS
-
-	} else if proto == "tcp" {
-		ch <- prometheus.MustNewConstMetric(
-			clientProtocol, prometheus.GaugeValue, 0, "https",
-		)
-
-		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: e.timeout}, "tcp", target, e.tlsConfig)
-		if err != nil {
-			log.Errorln(err)
-			ch <- prometheus.MustNewConstMetric(
-				tlsConnectSuccess, prometheus.GaugeValue, 0,
-			)
-			return
-		}
-		defer conn.Close()
-
-		state = conn.ConnectionState()
-	} else {
-		log.Errorln("Unrecognised protocol: " + string(proto) + " for target: " + target)
+	state, err := e.prober(e.target, e.module, e.timeout)
+	if err != nil {
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
@@ -158,13 +83,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Get the TLS version from the connection state and export it as a metric
 	ch <- prometheus.MustNewConstMetric(
-		tlsVersion, prometheus.GaugeValue, 1, getTLSVersion(&state),
+		tlsVersion, prometheus.GaugeValue, 1, getTLSVersion(state),
 	)
 
 	// Retrieve certificates from the connection state
 	peerCertificates := state.PeerCertificates
 	if len(peerCertificates) < 1 {
-		log.Errorln("No certificates found in connection state for " + target)
+		log.Errorln("No certificates found in connection state for " + e.target)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
@@ -182,49 +107,49 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	for _, cert := range peerCertificates {
 		var DNSNamesLabel, emailsLabel, ipsLabel, OULabel string
 
-		commonName := cert.Subject.CommonName
-		issuerCommonName := cert.Issuer.CommonName
-		serialNo := cert.SerialNumber.String()
-		DNSNames := cert.DNSNames
-		emailAddresses := cert.EmailAddresses
-		IPAddresses := cert.IPAddresses
-		OU := cert.Subject.OrganizationalUnit
-
-		if len(DNSNames) > 0 {
-			DNSNamesLabel = "," + strings.Join(DNSNames, ",") + ","
+		if len(cert.DNSNames) > 0 {
+			DNSNamesLabel = "," + strings.Join(cert.DNSNames, ",") + ","
 		}
 
-		if len(emailAddresses) > 0 {
-			emailsLabel = "," + strings.Join(emailAddresses, ",") + ","
+		if len(cert.EmailAddresses) > 0 {
+			emailsLabel = "," + strings.Join(cert.EmailAddresses, ",") + ","
 		}
 
-		if len(IPAddresses) > 0 {
+		if len(cert.IPAddresses) > 0 {
 			ipsLabel = ","
-			for _, ip := range IPAddresses {
+			for _, ip := range cert.IPAddresses {
 				ipsLabel = ipsLabel + ip.String() + ","
 			}
 		}
 
-		if len(OU) > 0 {
-			OULabel = "," + strings.Join(OU, ",") + ","
+		if len(cert.Subject.OrganizationalUnit) > 0 {
+			OULabel = "," + strings.Join(cert.Subject.OrganizationalUnit, ",") + ","
 		}
 
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), serialNo, issuerCommonName, commonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
+				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), cert.SerialNumber.String(), cert.Issuer.CommonName, cert.Subject.CommonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
 			)
 		}
 
 		if !cert.NotBefore.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), serialNo, issuerCommonName, commonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
+				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), cert.SerialNumber.String(), cert.Issuer.CommonName, cert.Subject.CommonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
 			)
 		}
 	}
 }
 
-func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config) {
-	target := r.URL.Query().Get("target")
+func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
+	moduleName := r.URL.Query().Get("module")
+	if moduleName == "" {
+		moduleName = "tcp"
+	}
+	module, ok := conf.Modules[moduleName]
+	if !ok {
+		http.Error(w, fmt.Sprintf("Unknown module %q", moduleName), http.StatusBadRequest)
+		return
+	}
 
 	// The following timeout block was taken wholly from the blackbox exporter
 	//   https://github.com/prometheus/blackbox_exporter/blob/master/main.go
@@ -245,10 +170,23 @@ func probeHandler(w http.ResponseWriter, r *http.Request, tlsConfig *tls.Config)
 
 	timeout := time.Duration((timeoutSeconds) * 1e9)
 
+	target := r.URL.Query().Get("target")
+	if target == "" {
+		http.Error(w, "Target parameter is missing", http.StatusBadRequest)
+		return
+	}
+
+	prober, ok := prober.Probers[module.Prober]
+	if !ok {
+		http.Error(w, fmt.Sprintf("Unknown prober %q", module.Prober), http.StatusBadRequest)
+		return
+	}
+
 	exporter := &Exporter{
-		target:    target,
-		timeout:   timeout,
-		tlsConfig: tlsConfig,
+		target:  target,
+		prober:  prober,
+		timeout: timeout,
+		module:  module,
 	}
 
 	registry := prometheus.NewRegistry()
@@ -280,27 +218,6 @@ func contains(certs []*x509.Certificate, cert *x509.Certificate) bool {
 	return false
 }
 
-func parseTarget(target string) (parsedTarget string, proto string, err error) {
-	if !strings.Contains(target, "://") {
-		target = "//" + target
-	}
-
-	u, err := url.Parse(target)
-	if err != nil {
-		return "", proto, err
-	}
-
-	if u.Scheme != "" {
-		if u.Scheme == "https" {
-			return u.String(), "https", nil
-		}
-		return "", proto, errors.New("can't handle the scheme '" + u.Scheme + "' - try providing the target in the format <host>:<port>")
-	} else if u.Port() == "" {
-		return "https://" + u.Host, "https", nil
-	}
-	return u.Host, "tcp", nil
-}
-
 func getTLSVersion(state *tls.ConnectionState) string {
 	switch state.Version {
 	case tls.VersionTLS10:
@@ -322,17 +239,11 @@ func init() {
 
 func main() {
 	var (
-		tlsConfig     *tls.Config
-		certificates  []tls.Certificate
-		rootCAs       *x509.CertPool
 		listenAddress = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9219").String()
 		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
 		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
-		insecure      = kingpin.Flag("tls.insecure", "Skip certificate verification").Default("false").Bool()
-		clientAuth    = kingpin.Flag("tls.client-auth", "Enable client authentication").Default("false").Bool()
-		caFile        = kingpin.Flag("tls.cacert", "Local path to an alternative CA cert bundle").String()
-		certFile      = kingpin.Flag("tls.cert", "Local path to a client certificate file (for client authentication)").Default("cert.pem").String()
-		keyFile       = kingpin.Flag("tls.key", "Local path to a private key file (for client authentication)").Default("key.pem").String()
+		configFile    = kingpin.Flag("config.file", "SSL exporter configuration file").Default("").String()
+		err           error
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -340,28 +251,12 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	if *caFile != "" {
-		caCert, err := ioutil.ReadFile(*caFile)
+	conf := config.DefaultConfig
+	if *configFile != "" {
+		conf, err = config.LoadConfig(*configFile)
 		if err != nil {
 			log.Fatalln(err)
 		}
-
-		rootCAs = x509.NewCertPool()
-		rootCAs.AppendCertsFromPEM(caCert)
-	}
-
-	if *clientAuth {
-		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		certificates = append(certificates, cert)
-	}
-
-	tlsConfig = &tls.Config{
-		InsecureSkipVerify: *insecure,
-		Certificates:       certificates,
-		RootCAs:            rootCAs,
 	}
 
 	log.Infoln("Starting "+namespace+"_exporter", version.Info())
@@ -369,7 +264,7 @@ func main() {
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, tlsConfig)
+		probeHandler(w, r, conf)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>

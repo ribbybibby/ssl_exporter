@@ -21,20 +21,19 @@ meaningful visualisations and consoles.
 ## Table of Contents
 
 - [SSL Certificate Exporter](#ssl-certificate-exporter)
+  - [Table of Contents](#table-of-contents)
   - [Building](#building)
-  - [Docker](#docker)
-  - [Flags](#flags)
+    - [Docker](#docker)
+    - [Release process](#release-process)
+  - [Usage](#usage)
   - [Metrics](#metrics)
-  - [Prometheus](#prometheus)
-    - [Configuration](#configuration)
-    - [Targets](#targets)
-      - [Valid targets](#valid-targets)
-      - [Invalid targets](#invalid-targets)
-    - [Example Queries](#example-queries)
-  - [Client authentication](#client-authentication)
+  - [Configuration](#configuration)
+    - [Configuration file](#configuration-file)
+      - [&lt;module&gt;](#module)
+      - [&lt;tls_config&gt;](#tls_config)
+  - [Example Queries](#example-queries)
   - [Proxying](#proxying)
-  - [Limitations](#limitations)
-  - [Acknowledgements](#acknowledgements)
+  - [Grafana](#grafana)
 
 Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
@@ -61,29 +60,28 @@ metric indicates if the probe has been successful.
 - Dockerhub will build and tag a new container image in response to tags of the
   format `/^v[0-9.]+$/`
 
-## Flags
+## Usage
 
-    ./ssl_exporter --help
+```
+usage: ssl_exporter [<flags>]
 
-- **`--tls.insecure`:** Skip certificate verification (default false). This is
-  insecure but does allow you to collect metrics in the case where a certificate
-  has expired. That being said, I feel that it's more important to catch
-  verification failures than it is to identify an expired certificate,
-  especially as the former includes the latter.
-- **`--tls.cacert`:** Provide the path to an alternative bundle of root CA
-  certificates. By default the exporter will use the host's root CA set.
-- **`--tls.client-auth`:** Enable client authentication (default false). When
-  enabled the exporter will present the certificate and key configured by
-  `--tls.cert` and `tls.key` to the other side of the connection.
-- **`--tls.cert`:** The path to a local certificate for client authentication
-  (default "cert.pem"). Only used when `--tls.client-auth` is toggled on.
-- **`--tls.key`:** The path to a local key for client authentication (default
-  "key.pem"). Only used when `--tls.client-auth` is toggled on.
-- **`--web.listen-address`:** The port (default ":9219").
-- **`--web.metrics-path`:** The path metrics are exposed under (default
-  "/metrics")
-- **`--web.probe-path`:** The path the probe endpoint is exposed under (default
-  "/probe")
+Flags:
+  -h, --help                     Show context-sensitive help (also try --help-long and
+                                 --help-man).
+      --web.listen-address=":9219"
+                                 Address to listen on for web interface and telemetry.
+      --web.metrics-path="/metrics"
+                                 Path under which to expose metrics
+      --web.probe-path="/probe"  Path under which to expose the probe endpoint
+      --config.file=""           SSL exporter configuration file
+      --log.level="info"         Only log messages with the given severity or above. Valid
+                                 levels: [debug, info, warn, error, fatal]
+      --log.format="logger:stderr"
+                                 Set the log target and format. Example:
+                                 "logger:syslog?appname=bob&local=7" or
+                                 "logger:stdout?json=true"
+      --version                  Show application version.
+```
 
 ## Metrics
 
@@ -91,13 +89,11 @@ metric indicates if the probe has been successful.
 | ----------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------- |
 | ssl_cert_not_after      | The date after which the certificate expires. Expressed as a Unix Epoch Time.       | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
 | ssl_cert_not_before     | The date before which the certificate is not valid. Expressed as a Unix Epoch Time. | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_client_protocol     | The protocol used by the exporter to connect to the target. Boolean.                | protocol                                            |
+| ssl_prober              | The prober used by the exporter to connect to the target. Boolean.                  | prober                                              |
 | ssl_tls_connect_success | Was the TLS connection successful? Boolean.                                         |                                                     |
 | ssl_tls_version_info    | The TLS version used. Always 1.                                                     | version                                             |
 
-## Prometheus
-
-### Configuration
+## Configuration
 
 Just like with the blackbox_exporter, you should pass the targets to a single
 instance of the exporter in a scrape config with a clever bit of relabelling.
@@ -121,38 +117,68 @@ scrape_configs:
         replacement: 127.0.0.1:9219 # SSL exporter.
 ```
 
-### Targets
+By default the exporter will make a TCP connection to the target. You can change
+this to https by setting the module parameter:
 
-The exporter uses the provided uri to decide which client (http or tcp) to use
-when connecting to the target. The uri must contain either a protocol scheme
-(`https://`), a port (`:443`), or both (`https://example.com:443`).
+```yml
+scrape_configs:
+  - job_name: "ssl"
+    metrics_path: /probe
+    params:
+      module: ["https"] # <-----
+    static_configs:
+      - targets:
+          - example.com:443
+          - prometheus.io:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219
+```
 
-If the `https://` scheme is provided then the exporter will use a http client to
-connect to the target. This allows you to take advantage of some features not
-available when using tcp, like host-based proxying. The exporter doesn't
-understand any other L7 protocols, so it will produce an error for others, like
-`ldaps://` or `ftps://`.
+### Configuration file
 
-If there's only a port, then a tcp client is used to make the TLS connection.
-This should allow you to connect to any TLS target, regardless of L7 protocol.
+You can provide further module configuration by providing the path to a
+configuration file with `--config.file`. The file is written in yaml format,
+defined by the schema below.
 
-If neither are given, the exporter assumes a https connection on port `443` (the
-most common case).
+```
+modules: [<module>]
+```
 
-#### Valid targets
+#### \<module\>
 
-- `https://example.com`
-- `https://example.com:443`
-- `example.com:443`
-- `example.com:636`
-- `example.com`
+```
+# The protocol over which the probe will take place (http, tcp)
+prober: <prober_string>
 
-#### Invalid targets
+# Configuration for TLS
+tls_config: <tls_config>
+```
 
-- `ldaps://example.com`
-- `ldaps://example.com:636`
+#### <tls_config>
 
-### Example Queries
+```
+# Disable target certificate validation.
+[ insecure_skip_verify: <boolean> | default = false ]
+
+# The CA cert to use for the targets.
+[ ca_file: <filename> ]
+
+# The client cert file for the targets.
+[ cert_file: <filename> ]
+
+# The client key file for the targets.
+[ key_file: <filename> ]
+
+# Used to verify the hostname for the targets.
+[ server_name: <string> ]
+```
+
+## Example Queries
 
 Certificates that expire within 7 days:
 
@@ -178,45 +204,17 @@ Identify instances that have failed to create a valid SSL connection:
 ssl_tls_connect_success == 0
 ```
 
-## Client authentication
-
-The exporter optionally supports client authentication, which can be toggled on
-by providing the `--tls.client-auth` flag. By default, it will use the host
-system's root CA bundle and attempt to use `./cert.pem` and `./key.pem` as the
-client certificate and key, respectively. You can override these defaults with
-`--tls.cacert`, `--tls.cert` and `--tls.key`.
-
-If you do enable client authentication, keep in mind that the certificate will
-be passed to all targets, even those that don't necessarily require client
-authentication. I'm not sure what the implications of that are but I think you'd
-probably want to avoid passing a certificate to an unrelated server.
-
-Also, if you want to scrape targets with different client certificate
-requirements, you'll need to run different instances of the exporter for each.
-This seemed like a better approach than overloading the exporter with the
-ability to pass different certificates per-target.
-
 ## Proxying
 
-The https client used by the exporter supports the use of proxy servers
-discovered by the environment variables `HTTP_PROXY`, `HTTPS_PROXY` and
-`ALL_PROXY`.
+The `https` prober supports the use of proxy servers discovered by the
+environment variables `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY`.
 
 For instance:
 
     $ export HTTPS_PROXY=localhost:8888
     $ ./ssl_exporter
 
-In order to use the https client, targets must be provided to the exporter with
-the protocol in the uri (`https://<host>:<optional port>`).
-
 ## Grafana
 
 You can find a simple dashboard [here](grafana/dashboard.json) that tracks
 certificate expiration dates and target connection errors.
-
-## Acknowledgements
-
-The overall structure and implementation of this exporter is based on the
-[consul_exporter](https://github.com/prometheus/consul_exporter). The probing
-functionality borrows from the blackbox_exporter.

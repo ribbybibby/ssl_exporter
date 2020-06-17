@@ -1,0 +1,15 @@
+modules:
+  https_insecure:
+    prober: https
+    tls_config:
+      insecure_skip_verify: true
+  tcp_servername:
+    prober: tcp
+    tls_config:
+      server_name: example.com
+  tcp_client_auth:
+    prober: tcp
+    tls_config:
+      ca_file: /etc/tls/ca.crt
+      cert_file: /etc/tls/tls.crt
+      key_file: /etc/tls/tls.key
