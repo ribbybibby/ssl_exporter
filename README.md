@@ -31,6 +31,8 @@ meaningful visualisations and consoles.
     - [Configuration file](#configuration-file)
       - [&lt;module&gt;](#module)
       - [&lt;tls_config&gt;](#tls_config)
+      - [&lt;https_probe&gt;](#https_probe)
+      - [&lt;tcp_probe&gt;](#tcp_probe)
   - [Example Queries](#example-queries)
   - [Proxying](#proxying)
   - [Grafana](#grafana)
@@ -152,7 +154,7 @@ modules: [<module>]
 #### \<module\>
 
 ```
-# The protocol over which the probe will take place (http, tcp)
+# The protocol over which the probe will take place (https, tcp)
 prober: <prober_string>
 
 # Configuration for TLS
@@ -160,6 +162,7 @@ prober: <prober_string>
 
 # The specific probe configuration
 [ https: <https_probe> ]
+[ tcp: <tcp_probe> ]
 ```
 
 #### <tls_config>
@@ -186,6 +189,13 @@ prober: <prober_string>
 ```
 # HTTP proxy server to use to connect to the targets.
 [ proxy_url: <string> ]
+```
+
+#### <tcp_probe>
+
+```
+# Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap)
+[ starttls: <string> ]
 ```
 
 ## Example Queries

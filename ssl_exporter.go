@@ -75,6 +75,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	state, err := e.prober(e.target, e.module, e.timeout)
 	if err != nil {
+		log.Errorln(err)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)

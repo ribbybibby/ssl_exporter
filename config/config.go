@@ -52,6 +52,11 @@ type Module struct {
 	Prober    string           `yaml:"prober,omitempty"`
 	TLSConfig config.TLSConfig `yaml:"tls_config,omitempty"`
 	HTTPS     HTTPSProbe       `yaml:"https,omitempty"`
+	TCP       TCPProbe         `yaml:"tcp,omitempty"`
+}
+
+type TCPProbe struct {
+	StartTLS string `yaml:"starttls,omitempty"`
 }
 
 type HTTPSProbe struct {
