@@ -8,3 +8,17 @@ jobs:
       - uses: actions/checkout@v1
       - name: Build the Docker image
         run: docker build .
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14.x
+      - name: Build release snapshot
+        run: make snapshot
+      - name: Archive release snapshot
+        uses: actions/upload-artifact@v2
+        with:
+          name: release-snapshot
+          path: |
+            bin/*.tar.gz
+            bin/*.txt
+            bin/*.yaml
