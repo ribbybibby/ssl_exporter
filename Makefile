@@ -1,7 +1,7 @@
 GOPATH      := $(shell go env GOPATH)
 
 BIN_DIR             ?= $(shell pwd)/bin
-BIN_NAME            ?= ssl_exporter
+BIN_NAME            ?= ssl_exporter$(shell go env GOEXE)
 DOCKER_IMAGE_NAME   ?= ssl-exporter
 DOCKER_IMAGE_TAG    ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 
