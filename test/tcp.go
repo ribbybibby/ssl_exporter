@@ -145,35 +145,44 @@ func (t *TCPServer) Close() {
 // SetupTCPServer sets up a server for testing with a generated cert and key
 // pair
 func SetupTCPServer() (*TCPServer, []byte, []byte, string, func(), error) {
-	var teardown func()
-
 	testcertPEM, testkeyPEM := GenerateTestCertificate(time.Now().AddDate(0, 0, 1))
 
-	caFile, err := WriteFile("certfile.pem", testcertPEM)
+	server, caFile, teardown, err := SetupTCPServerWithCertAndKey(testcertPEM, testcertPEM, testkeyPEM)
 	if err != nil {
 		return nil, testcertPEM, testkeyPEM, caFile, teardown, err
+	}
+
+	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+}
+
+// SetupTCPServerWithCertAndKey sets up a server with the provided certs and key
+func SetupTCPServerWithCertAndKey(caPEM, certPEM, keyPEM []byte) (*TCPServer, string, func(), error) {
+	var teardown func()
+
+	caFile, err := WriteFile("certfile.pem", caPEM)
+	if err != nil {
+		return nil, caFile, teardown, err
 	}
 
 	teardown = func() {
 		os.Remove(caFile)
 	}
 
-	testcert, err := tls.X509KeyPair(testcertPEM, testkeyPEM)
+	testCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to decode TLS testing keypair: %s\n", err))
+		return nil, caFile, teardown, err
 	}
 
 	tlsConfig := &tls.Config{
 		ServerName:   "127.0.0.1",
-		Certificates: []tls.Certificate{testcert},
+		Certificates: []tls.Certificate{testCert},
 		MinVersion:   tls.VersionTLS13,
 		MaxVersion:   tls.VersionTLS13,
 	}
 
-	// Create server
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, testcertPEM, testkeyPEM, caFile, teardown, err
+		return nil, caFile, teardown, err
 	}
 
 	server := &TCPServer{
@@ -182,5 +191,5 @@ func SetupTCPServer() (*TCPServer, []byte, []byte, string, func(), error) {
 		stopCh:   make(chan (struct{})),
 	}
 
-	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+	return server, caFile, teardown, err
 }

@@ -34,6 +34,7 @@ meaningful visualisations and consoles.
       - [&lt;https_probe&gt;](#https_probe)
       - [&lt;tcp_probe&gt;](#tcp_probe)
   - [Example Queries](#example-queries)
+  - [Peer Cerificates vs Verified Chain Certificates](#peer-cerificates-vs-verified-chain-certificates)
   - [Proxying](#proxying)
   - [Grafana](#grafana)
 
@@ -87,13 +88,15 @@ Flags:
 
 ## Metrics
 
-| Metric                  | Meaning                                                                             | Labels                                              |
-| ----------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------- |
-| ssl_cert_not_after      | The date after which the certificate expires. Expressed as a Unix Epoch Time.       | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_cert_not_before     | The date before which the certificate is not valid. Expressed as a Unix Epoch Time. | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_prober              | The prober used by the exporter to connect to the target. Boolean.                  | prober                                              |
-| ssl_tls_connect_success | Was the TLS connection successful? Boolean.                                         |                                                     |
-| ssl_tls_version_info    | The TLS version used. Always 1.                                                     | version                                             |
+| Metric                       | Meaning                                                                                                 | Labels                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ssl_cert_not_after           | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                        | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_cert_not_before          | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                  | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_prober                   | The prober used by the exporter to connect to the target. Boolean.                                      | prober                                                        |
+| ssl_tls_connect_success      | Was the TLS connection successful? Boolean.                                                             |                                                               |
+| ssl_tls_version_info         | The TLS version used. Always 1.                                                                         | version                                                       |
+| ssl_verified_cert_not_after  | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.       | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| ssl_verified_cert_not_before | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time. | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
 
 ## Configuration
 
@@ -212,10 +215,17 @@ Wildcard certificates that are expiring:
 ssl_cert_not_after{cn=~"\*.*"} - time() < 86400 * 7
 ```
 
-Number of certificates in the chain:
+Certificates that expire within 7 days in the verified chain that expires
+latest:
 
 ```
-count(ssl_cert_not_after) by (instance, serial_no, issuer_cn)
+ssl_verified_cert_not_after{chain_no="0"} - time() < 86400 * 7
+```
+
+Number of certificates presented by the server:
+
+```
+count(ssl_cert_not_after) by (instance)
 ```
 
 Identify instances that have failed to create a valid SSL connection:
@@ -223,6 +233,40 @@ Identify instances that have failed to create a valid SSL connection:
 ```
 ssl_tls_connect_success == 0
 ```
+
+## Peer Cerificates vs Verified Chain Certificates
+
+Metrics are exported for the `NotAfter` and `NotBefore` fields for peer
+certificates as well as for the verified chain that is
+constructed by the client.
+
+The former only includes the certificates that are served explicitly by the
+target, while the latter can contain multiple chains of trust that are
+constructed from root certificates held by the client to the target's server
+certificate.
+
+This has important implications when monitoring certificate expiry.
+
+For instance, it may be the case that `ssl_cert_not_after` reports that the root
+certificate served by the target is expiring soon even though clients can form
+another, much longer lived, chain of trust using another valid root certificate
+held locally. In this case, you may want to use `ssl_verified_cert_not_after` to
+alert on expiry instead, as this will contain the chain that the client actually
+constructs:
+
+```
+ssl_verified_cert_not_after{chain_no="0"} - time() < 86400 * 7
+```
+
+Each chain is numbered by the exporter in reverse order of expiry, so that
+`chain_no="0"` is the chain that will expire the latest. Therefore the query
+above will only alert when the chain of trust between the exporter and the
+target is truly nearing expiry.
+
+It's very important to note that a query of this kind only represents the chain
+of trust between the exporter and the target. Genuine clients may hold different
+root certs than the exporter and therefore have different verified chains of
+trust.
 
 ## Proxying
 

@@ -14,32 +14,41 @@ import (
 // SetupHTTPSServer sets up a server for testing with a generated cert and key
 // pair
 func SetupHTTPSServer() (*httptest.Server, []byte, []byte, string, func(), error) {
-	var teardown func()
-
 	testcertPEM, testkeyPEM := GenerateTestCertificate(time.Now().AddDate(0, 0, 1))
 
-	caFile, err := WriteFile("certfile.pem", testcertPEM)
+	server, caFile, teardown, err := SetupHTTPSServerWithCertAndKey(testcertPEM, testcertPEM, testkeyPEM)
 	if err != nil {
 		return nil, testcertPEM, testkeyPEM, caFile, teardown, err
+	}
+
+	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+}
+
+// SetupHTTPSServerWithCertAndKey sets up a server with a provided certs and key
+func SetupHTTPSServerWithCertAndKey(caPEM, certPEM, keyPEM []byte) (*httptest.Server, string, func(), error) {
+	var teardown func()
+
+	caFile, err := WriteFile("certfile.pem", caPEM)
+	if err != nil {
+		return nil, caFile, teardown, err
 	}
 
 	teardown = func() {
 		os.Remove(caFile)
 	}
 
-	// Create server
-	testcert, err := tls.X509KeyPair(testcertPEM, testkeyPEM)
+	testCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		return nil, testcertPEM, testkeyPEM, caFile, teardown, err
+		return nil, caFile, teardown, err
 	}
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello world")
 	}))
 	server.TLS = &tls.Config{
-		Certificates: []tls.Certificate{testcert},
+		Certificates: []tls.Certificate{testCert},
 	}
 
-	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+	return server, caFile, teardown, nil
 }
 
 // SetupHTTPProxyServer sets up a proxy server

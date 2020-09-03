@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +49,16 @@ var (
 		"NotAfter expressed as a Unix Epoch Time",
 		[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
+	verifiedNotBefore = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "verified_cert_not_before"),
+		"NotBefore expressed as a Unix Epoch Time for a certificate in the list of verified chains",
+		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
+	)
+	verifiedNotAfter = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "verfied_cert_not_after"),
+		"NotAfter expressed as a Unix Epoch Time for a certificate in the list of verified chains",
+		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
+	)
 )
 
 // Exporter is the exporter type...
@@ -65,6 +76,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- proberType
 	ch <- notAfter
 	ch <- notBefore
+	ch <- verifiedNotAfter
+	ch <- verifiedNotBefore
 }
 
 // Collect metrics
@@ -97,6 +110,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	// If there are peer certificates in the connection state then consider
+	// the tls connection a success
 	ch <- prometheus.MustNewConstMetric(
 		tlsConnectSuccess, prometheus.GaugeValue, 1,
 	)
@@ -104,39 +119,99 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	// Remove duplicate certificates from the response
 	peerCertificates = uniq(peerCertificates)
 
-	// Loop through returned certificates and create metrics
+	// Loop through peer certificates and create metrics
 	for _, cert := range peerCertificates {
-		var DNSNamesLabel, emailsLabel, ipsLabel, OULabel string
-
-		if len(cert.DNSNames) > 0 {
-			DNSNamesLabel = "," + strings.Join(cert.DNSNames, ",") + ","
-		}
-
-		if len(cert.EmailAddresses) > 0 {
-			emailsLabel = "," + strings.Join(cert.EmailAddresses, ",") + ","
-		}
-
-		if len(cert.IPAddresses) > 0 {
-			ipsLabel = ","
-			for _, ip := range cert.IPAddresses {
-				ipsLabel = ipsLabel + ip.String() + ","
-			}
-		}
-
-		if len(cert.Subject.OrganizationalUnit) > 0 {
-			OULabel = "," + strings.Join(cert.Subject.OrganizationalUnit, ",") + ","
-		}
-
 		if !cert.NotAfter.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notAfter, prometheus.GaugeValue, float64(cert.NotAfter.UnixNano()/1e9), cert.SerialNumber.String(), cert.Issuer.CommonName, cert.Subject.CommonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
+				notAfter,
+				prometheus.GaugeValue,
+				float64(cert.NotAfter.UnixNano()/1e9),
+				cert.SerialNumber.String(),
+				cert.Issuer.CommonName,
+				cert.Subject.CommonName,
+				getDNSNames(cert),
+				getIPAddresses(cert),
+				getEmailAddresses(cert),
+				getOrganizationalUnits(cert),
 			)
 		}
 
 		if !cert.NotBefore.IsZero() {
 			ch <- prometheus.MustNewConstMetric(
-				notBefore, prometheus.GaugeValue, float64(cert.NotBefore.UnixNano()/1e9), cert.SerialNumber.String(), cert.Issuer.CommonName, cert.Subject.CommonName, DNSNamesLabel, ipsLabel, emailsLabel, OULabel,
+				notBefore,
+				prometheus.GaugeValue,
+				float64(cert.NotBefore.UnixNano()/1e9),
+				cert.SerialNumber.String(),
+				cert.Issuer.CommonName,
+				cert.Subject.CommonName,
+				getDNSNames(cert),
+				getIPAddresses(cert),
+				getEmailAddresses(cert),
+				getOrganizationalUnits(cert),
 			)
+		}
+	}
+
+	// Retrieve the list of verified chains from the connection state
+	verifiedChains := state.VerifiedChains
+
+	// Sort the verified chains from the chain that is valid for longest to the chain
+	// that expires the soonest
+	sort.Slice(verifiedChains, func(i, j int) bool {
+		iExpiry := time.Time{}
+		for _, cert := range verifiedChains[i] {
+			if (iExpiry.IsZero() || cert.NotAfter.Before(iExpiry)) && !cert.NotAfter.IsZero() {
+				iExpiry = cert.NotAfter
+			}
+		}
+		jExpiry := time.Time{}
+		for _, cert := range verifiedChains[j] {
+			if (jExpiry.IsZero() || cert.NotAfter.Before(jExpiry)) && !cert.NotAfter.IsZero() {
+				jExpiry = cert.NotAfter
+			}
+		}
+
+		return iExpiry.After(jExpiry)
+	})
+
+	// Loop through the verified chains creating metrics. Label the metrics
+	// with the index of the chain.
+	for i, chain := range verifiedChains {
+		chain = uniq(chain)
+		for _, cert := range chain {
+			chainNo := strconv.Itoa(i)
+
+			if !cert.NotAfter.IsZero() {
+				ch <- prometheus.MustNewConstMetric(
+					verifiedNotAfter,
+					prometheus.GaugeValue,
+					float64(cert.NotAfter.UnixNano()/1e9),
+					chainNo,
+					cert.SerialNumber.String(),
+					cert.Issuer.CommonName,
+					cert.Subject.CommonName,
+					getDNSNames(cert),
+					getIPAddresses(cert),
+					getEmailAddresses(cert),
+					getOrganizationalUnits(cert),
+				)
+			}
+
+			if !cert.NotBefore.IsZero() {
+				ch <- prometheus.MustNewConstMetric(
+					verifiedNotBefore,
+					prometheus.GaugeValue,
+					float64(cert.NotBefore.UnixNano()/1e9),
+					chainNo,
+					cert.SerialNumber.String(),
+					cert.Issuer.CommonName,
+					cert.Subject.CommonName,
+					getDNSNames(cert),
+					getIPAddresses(cert),
+					getEmailAddresses(cert),
+					getOrganizationalUnits(cert),
+				)
+			}
 		}
 	}
 }
@@ -232,6 +307,42 @@ func getTLSVersion(state *tls.ConnectionState) string {
 	default:
 		return "unknown"
 	}
+}
+
+func getDNSNames(cert *x509.Certificate) string {
+	if len(cert.DNSNames) > 0 {
+		return "," + strings.Join(cert.DNSNames, ",") + ","
+	}
+
+	return ""
+}
+
+func getEmailAddresses(cert *x509.Certificate) string {
+	if len(cert.EmailAddresses) > 0 {
+		return "," + strings.Join(cert.EmailAddresses, ",") + ","
+	}
+
+	return ""
+}
+
+func getIPAddresses(cert *x509.Certificate) string {
+	if len(cert.IPAddresses) > 0 {
+		ips := ","
+		for _, ip := range cert.IPAddresses {
+			ips = ips + ip.String() + ","
+		}
+		return ips
+	}
+
+	return ""
+}
+
+func getOrganizationalUnits(cert *x509.Certificate) string {
+	if len(cert.Subject.OrganizationalUnit) > 0 {
+		return "," + strings.Join(cert.Subject.OrganizationalUnit, ",") + ","
+	}
+
+	return ""
 }
 
 func init() {
