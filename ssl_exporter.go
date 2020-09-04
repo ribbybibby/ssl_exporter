@@ -75,7 +75,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	state, err := e.prober(e.target, e.module, e.timeout)
 	if err != nil {
-		log.Errorln(err)
+		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, e.target, e.module.Prober, e.timeout)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
@@ -90,7 +90,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	// Retrieve certificates from the connection state
 	peerCertificates := state.PeerCertificates
 	if len(peerCertificates) < 1 {
-		log.Errorln("No certificates found in connection state for " + e.target)
+		log.Errorf("error=No certificates found in connection state. target=%s prober=%s", e.target, e.module.Prober)
 		ch <- prometheus.MustNewConstMetric(
 			tlsConnectSuccess, prometheus.GaugeValue, 0,
 		)
