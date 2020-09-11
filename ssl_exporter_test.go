@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -56,7 +60,7 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 		t.Errorf("expected `ssl_prober{prober=\"https\"} 1`")
 	}
 
-	// Check notAfter and notBefore metrics
+	// Check notAfter and notBefore metrics for the peer certificate
 	if err := checkDates(certPEM, rr.Body.String()); err != nil {
 		t.Errorf(err.Error())
 	}
@@ -65,6 +69,89 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 	ok := strings.Contains(rr.Body.String(), "ssl_tls_version_info{version=\"TLS 1.3\"} 1")
 	if !ok {
 		t.Errorf("expected `ssl_tls_version_info{version=\"TLS 1.3\"} 1`")
+	}
+}
+
+// TestProbeHandlerHTTPSVerifiedChains checks that metrics are generated
+// correctly for the verified chains
+func TestProbeHandlerHTTPSVerifiedChains(t *testing.T) {
+	rootPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rootCertExpiry := time.Now().AddDate(0, 0, 5)
+	rootCertTmpl := test.GenerateCertificateTemplate(rootCertExpiry)
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.SerialNumber = big.NewInt(1)
+	rootCert, rootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(rootCertTmpl, rootPrivateKey)
+
+	olderRootCertExpiry := time.Now().AddDate(0, 0, 3)
+	olderRootCertTmpl := test.GenerateCertificateTemplate(olderRootCertExpiry)
+	olderRootCertTmpl.IsCA = true
+	olderRootCertTmpl.SerialNumber = big.NewInt(2)
+	olderRootCert, olderRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(olderRootCertTmpl, rootPrivateKey)
+
+	oldestRootCertExpiry := time.Now().AddDate(0, 0, 1)
+	oldestRootCertTmpl := test.GenerateCertificateTemplate(oldestRootCertExpiry)
+	oldestRootCertTmpl.IsCA = true
+	oldestRootCertTmpl.SerialNumber = big.NewInt(3)
+	oldestRootCert, oldestRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(oldestRootCertTmpl, rootPrivateKey)
+
+	serverCertExpiry := time.Now().AddDate(0, 0, 4)
+	serverCertTmpl := test.GenerateCertificateTemplate(serverCertExpiry)
+	serverCertTmpl.SerialNumber = big.NewInt(4)
+	serverCert, serverCertPem, serverKey := test.GenerateSignedCertificate(serverCertTmpl, olderRootCert, rootPrivateKey)
+
+	verifiedChains := [][]*x509.Certificate{
+		[]*x509.Certificate{
+			serverCert,
+			rootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			olderRootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			oldestRootCert,
+		},
+	}
+
+	caCertPem := bytes.Join([][]byte{oldestRootCertPem, olderRootCertPem, rootCertPem}, []byte(""))
+
+	server, caFile, teardown, err := test.SetupHTTPSServerWithCertAndKey(
+		caCertPem,
+		serverCertPem,
+		serverKey,
+	)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLS()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"https": config.Module{
+				Prober: "https",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.URL, "https", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check verifiedNotAfter and verifiedNotBefore metrics
+	if err := checkVerifiedChainDates(verifiedChains, rr.Body.String()); err != nil {
+		t.Errorf(err.Error())
 	}
 }
 
@@ -228,6 +315,89 @@ func TestProbeHandlerTCP(t *testing.T) {
 
 	// Check notAfter and notBefore metrics
 	if err := checkDates(certPEM, rr.Body.String()); err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+// TestProbeHandlerTCPVerifiedChains checks that metrics are generated
+// correctly for the verified chains
+func TestProbeHandlerTCPVerifiedChains(t *testing.T) {
+	rootPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rootCertExpiry := time.Now().AddDate(0, 0, 5)
+	rootCertTmpl := test.GenerateCertificateTemplate(rootCertExpiry)
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.SerialNumber = big.NewInt(1)
+	rootCert, rootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(rootCertTmpl, rootPrivateKey)
+
+	olderRootCertExpiry := time.Now().AddDate(0, 0, 3)
+	olderRootCertTmpl := test.GenerateCertificateTemplate(olderRootCertExpiry)
+	olderRootCertTmpl.IsCA = true
+	olderRootCertTmpl.SerialNumber = big.NewInt(2)
+	olderRootCert, olderRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(olderRootCertTmpl, rootPrivateKey)
+
+	oldestRootCertExpiry := time.Now().AddDate(0, 0, 1)
+	oldestRootCertTmpl := test.GenerateCertificateTemplate(oldestRootCertExpiry)
+	oldestRootCertTmpl.IsCA = true
+	oldestRootCertTmpl.SerialNumber = big.NewInt(3)
+	oldestRootCert, oldestRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(oldestRootCertTmpl, rootPrivateKey)
+
+	serverCertExpiry := time.Now().AddDate(0, 0, 4)
+	serverCertTmpl := test.GenerateCertificateTemplate(serverCertExpiry)
+	serverCertTmpl.SerialNumber = big.NewInt(4)
+	serverCert, serverCertPem, serverKey := test.GenerateSignedCertificate(serverCertTmpl, olderRootCert, rootPrivateKey)
+
+	verifiedChains := [][]*x509.Certificate{
+		[]*x509.Certificate{
+			serverCert,
+			rootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			olderRootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			oldestRootCert,
+		},
+	}
+
+	caCertPem := bytes.Join([][]byte{oldestRootCertPem, olderRootCertPem, rootCertPem}, []byte(""))
+
+	server, caFile, teardown, err := test.SetupTCPServerWithCertAndKey(
+		caCertPem,
+		serverCertPem,
+		serverKey,
+	)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLS()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"tcp": config.Module{
+				Prober: "tcp",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "tcp", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Check verifiedNotAfter and verifiedNotBefore metrics
+	if err := checkVerifiedChainDates(verifiedChains, rr.Body.String()); err != nil {
 		t.Errorf(err.Error())
 	}
 }
@@ -623,6 +793,44 @@ func checkDates(certPEM []byte, body string) error {
 	if ok := strings.Contains(body, "ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} "+notBefore); !ok {
 		return fmt.Errorf("expected `ssl_cert_not_before{cn=\"example.ribbybibby.me\",dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\",emails=\",me@ribbybibby.me,example@ribbybibby.me,\",ips=\",127.0.0.1,::1,\",issuer_cn=\"example.ribbybibby.me\",ou=\",ribbybibbys org,\",serial_no=\"100\"} " + notBefore + "`")
 	}
+	return nil
+}
+
+func checkVerifiedChainDates(verifiedChains [][]*x509.Certificate, body string) error {
+	for i, chain := range verifiedChains {
+		for _, cert := range chain {
+			notAfter := strconv.FormatFloat(float64(cert.NotAfter.UnixNano()/1e9), 'g', -1, 64)
+			notAfterMetric := "ssl_verified_cert_not_after{" + strings.Join([]string{
+				"chain_no=\"" + strconv.Itoa(i) + "\"",
+				"cn=\"example.ribbybibby.me\"",
+				"dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\"",
+				"emails=\",me@ribbybibby.me,example@ribbybibby.me,\"",
+				"ips=\",127.0.0.1,::1,\"",
+				"issuer_cn=\"example.ribbybibby.me\"",
+				"ou=\",ribbybibbys org,\"",
+				"serial_no=\"" + cert.SerialNumber.String() + "\"",
+			}, ",") + "} " + notAfter
+			if ok := strings.Contains(body, notAfter); !ok {
+				return fmt.Errorf("expected `%s` in: %s", notAfterMetric, body)
+			}
+
+			notBefore := strconv.FormatFloat(float64(cert.NotBefore.UnixNano()/1e9), 'g', -1, 64)
+			notBeforeMetric := "ssl_verified_cert_not_before{" + strings.Join([]string{
+				"chain_no=\"" + strconv.Itoa(i) + "\"",
+				"cn=\"example.ribbybibby.me\"",
+				"dnsnames=\",example.ribbybibby.me,example-2.ribbybibby.me,example-3.ribbybibby.me,\"",
+				"emails=\",me@ribbybibby.me,example@ribbybibby.me,\"",
+				"ips=\",127.0.0.1,::1,\"",
+				"issuer_cn=\"example.ribbybibby.me\"",
+				"ou=\",ribbybibbys org,\"",
+				"serial_no=\"" + cert.SerialNumber.String() + "\"",
+			}, ",") + "} " + notBefore
+			if ok := strings.Contains(body, notBeforeMetric); !ok {
+				return fmt.Errorf("expected `%s` in: %s", notBeforeMetric, body)
+			}
+		}
+	}
+
 	return nil
 }
 
