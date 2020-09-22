@@ -810,7 +810,7 @@ func checkVerifiedChainDates(verifiedChains [][]*x509.Certificate, body string) 
 				"ou=\",ribbybibbys org,\"",
 				"serial_no=\"" + cert.SerialNumber.String() + "\"",
 			}, ",") + "} " + notAfter
-			if ok := strings.Contains(body, notAfter); !ok {
+			if ok := strings.Contains(body, notAfterMetric); !ok {
 				return fmt.Errorf("expected `%s` in: %s", notAfterMetric, body)
 			}
 

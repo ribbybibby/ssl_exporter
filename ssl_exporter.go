@@ -55,7 +55,7 @@ var (
 		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
 	verifiedNotAfter = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "verfied_cert_not_after"),
+		prometheus.BuildFQName(namespace, "", "verified_cert_not_after"),
 		"NotAfter expressed as a Unix Epoch Time for a certificate in the list of verified chains",
 		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
