@@ -88,15 +88,19 @@ Flags:
 
 ## Metrics
 
-| Metric                       | Meaning                                                                                                 | Labels                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| ssl_cert_not_after           | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                        | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_cert_not_before          | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                  | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_prober                   | The prober used by the exporter to connect to the target. Boolean.                                      | prober                                                        |
-| ssl_tls_connect_success      | Was the TLS connection successful? Boolean.                                                             |                                                               |
-| ssl_tls_version_info         | The TLS version used. Always 1.                                                                         | version                                                       |
-| ssl_verified_cert_not_after  | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.       | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_verified_cert_not_before | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time. | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| Metric                        | Meaning                                                                                                 | Labels                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ssl_cert_not_after            | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                        | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_cert_not_before           | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                  | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_ocsp_response_next_update | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
+| ssl_ocsp_response_produced_at | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
+| ssl_ocsp_response_revoked_at  | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                           |                                                               |
+| ssl_ocsp_response_status      | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                             |                                                               |
+| ssl_prober                    | The prober used by the exporter to connect to the target. Boolean.                                      | prober                                                        |
+| ssl_tls_connect_success       | Was the TLS connection successful? Boolean.                                                             |                                                               |
+| ssl_tls_version_info          | The TLS version used. Always 1.                                                                         | version                                                       |
+| ssl_verified_cert_not_after   | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.       | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| ssl_verified_cert_not_before  | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time. | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
 
 ## Configuration
 

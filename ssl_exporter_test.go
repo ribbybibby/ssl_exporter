@@ -21,6 +21,7 @@ import (
 	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
+	"golang.org/x/crypto/ocsp"
 )
 
 // TestProbeHandlerHTTPS tests a typical HTTPS probe
@@ -399,6 +400,82 @@ func TestProbeHandlerTCPTimeout(t *testing.T) {
 		t.Errorf("expected `ssl_prober{prober=\"tcp\"} 1`")
 	}
 
+}
+
+// TestProbeHandlerTCPOCSP tests a TCP probe with OCSP stapling
+func TestProbeHandlerTCPOCSP(t *testing.T) {
+	server, certPEM, keyPEM, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	block, _ := pem.Decode([]byte(certPEM))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	block, _ = pem.Decode([]byte(keyPEM))
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	resp, err := ocsp.CreateResponse(cert, cert, ocsp.Response{SerialNumber: big.NewInt(64), Status: 1}, key)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	server.TLS.Certificates[0].OCSPStaple = resp
+
+	server.StartTLS()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"tcp": config.Module{
+				Prober: "tcp",
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "tcp", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	parsedResponse, err := ocsp.ParseResponse(resp, nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	status := strconv.Itoa(parsedResponse.Status)
+	if ok := strings.Contains(rr.Body.String(), "ssl_ocsp_response_status "+status); !ok {
+		t.Errorf("expected `ssl_ocsp_response_status " + status + "`")
+	}
+
+	nextUpdate := strconv.FormatFloat(float64(parsedResponse.NextUpdate.Unix()), 'g', -1, 64)
+	if ok := strings.Contains(rr.Body.String(), "ssl_ocsp_response_next_update "+nextUpdate); !ok {
+		t.Errorf("expected `ssl_ocsp_response_next_update " + nextUpdate + "`")
+	}
+
+	thisUpdate := strconv.FormatFloat(float64(parsedResponse.ThisUpdate.Unix()), 'g', -1, 64)
+	if ok := strings.Contains(rr.Body.String(), "ssl_ocsp_response_this_update "+thisUpdate); !ok {
+		t.Errorf("expected `ssl_ocsp_response_this_update " + thisUpdate + "`")
+	}
+
+	revokedAt := strconv.FormatFloat(float64(parsedResponse.RevokedAt.Unix()), 'g', -1, 64)
+	if ok := strings.Contains(rr.Body.String(), "ssl_ocsp_response_revoked_at "+revokedAt); !ok {
+		t.Errorf("expected `ssl_ocsp_response_revoked_at " + revokedAt + "`")
+	}
+
+	producedAt := strconv.FormatFloat(float64(parsedResponse.ProducedAt.Unix()), 'g', -1, 64)
+	if ok := strings.Contains(rr.Body.String(), "ssl_ocsp_response_produced_at "+producedAt); !ok {
+		t.Errorf("expected `ssl_ocsp_response_produced_at " + producedAt + "`")
+	}
 }
 
 // TestProbeHandlerTCPVerifiedChains checks that metrics are generated
