@@ -160,6 +160,9 @@ modules: [<module>]
 # The protocol over which the probe will take place (https, tcp)
 prober: <prober_string>
 
+# How long the probe will wait before giving up.
+[ timeout: <duration> ]
+
 # Configuration for TLS
 [ tls_config: <tls_config> ]
 

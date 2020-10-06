@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/prometheus/common/config"
 	yaml "gopkg.in/yaml.v3"
@@ -50,6 +51,7 @@ type Config struct {
 
 type Module struct {
 	Prober    string           `yaml:"prober,omitempty"`
+	Timeout   time.Duration    `yaml:"timeout,omitempty"`
 	TLSConfig config.TLSConfig `yaml:"tls_config,omitempty"`
 	HTTPS     HTTPSProbe       `yaml:"https,omitempty"`
 	TCP       TCPProbe         `yaml:"tcp,omitempty"`

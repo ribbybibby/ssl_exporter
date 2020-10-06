@@ -39,6 +39,30 @@ func (t *TCPServer) StartTLS() {
 	}()
 }
 
+// StartTLSWait starts a listener and waits for duration 'd' before performing
+// the TLS handshake
+func (t *TCPServer) StartTLSWait(d time.Duration) {
+	go func() {
+		ln := tls.NewListener(t.Listener, t.TLS)
+		conn, err := ln.Accept()
+		if err != nil {
+			panic(fmt.Sprintf("Error accepting on socket: %s", err))
+		}
+		defer conn.Close()
+
+		time.Sleep(d)
+
+		if err := conn.(*tls.Conn).Handshake(); err != nil {
+			log.Errorln(err)
+		} else {
+			// Send some bytes before terminating the connection.
+			fmt.Fprintf(conn, "Hello World!\n")
+		}
+
+		t.stopCh <- struct{}{}
+	}()
+}
+
 // StartSMTP starts a listener that negotiates a TLS connection with an smtp
 // client using STARTTLS
 func (t *TCPServer) StartSMTP() {

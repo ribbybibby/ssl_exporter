@@ -72,6 +72,49 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 	}
 }
 
+// TestProbeHandlerHTTPSTimeout tests that the probe respects the timeout set in
+// the module configuration
+func TestProbeHandlerHTTPSTimeout(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second)
+		fmt.Fprintln(w, "Hello world")
+	})
+
+	server.StartTLS()
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"https": config.Module{
+				Prober:  "https",
+				Timeout: 1 * time.Second,
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.URL, "https", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 0`")
+	}
+
+	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"https\"} 1"); !ok {
+		t.Errorf("expected `ssl_prober{prober=\"https\"} 1`")
+	}
+}
+
 // TestProbeHandlerHTTPSVerifiedChains checks that metrics are generated
 // correctly for the verified chains
 func TestProbeHandlerHTTPSVerifiedChains(t *testing.T) {
@@ -317,6 +360,45 @@ func TestProbeHandlerTCP(t *testing.T) {
 	if err := checkDates(certPEM, rr.Body.String()); err != nil {
 		t.Errorf(err.Error())
 	}
+}
+
+// TestProbeHandlerTCPTimeout tests that the probe respects the timeout set in
+// the module configuration
+func TestProbeHandlerTCPTimeout(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLSWait(3 * time.Second)
+	defer server.Close()
+
+	conf := &config.Config{
+		Modules: map[string]config.Module{
+			"tcp": config.Module{
+				Prober:  "tcp",
+				Timeout: 1 * time.Second,
+				TLSConfig: pconfig.TLSConfig{
+					CAFile: caFile,
+				},
+			},
+		},
+	}
+
+	rr, err := probe(server.Listener.Addr().String(), "tcp", conf)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
+		t.Errorf("expected `ssl_tls_connect_success 0`")
+	}
+
+	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"tcp\"} 1"); !ok {
+		t.Errorf("expected `ssl_prober{prober=\"tcp\"} 1`")
+	}
+
 }
 
 // TestProbeHandlerTCPVerifiedChains checks that metrics are generated
