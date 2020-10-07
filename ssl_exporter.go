@@ -59,6 +59,11 @@ var (
 		"NotAfter expressed as a Unix Epoch Time for a certificate in the list of verified chains",
 		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
+	ocspStapled = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_stapled"),
+		"If the connection state contains a stapled OCSP response",
+		nil, nil,
+	)
 	ocspStatus = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "ocsp_response_status"),
 		"The status in the OCSP response 0=Good 1=Revoked 2=Unknown",
@@ -103,6 +108,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- notBefore
 	ch <- verifiedNotAfter
 	ch <- verifiedNotBefore
+	ch <- ocspStapled
 	ch <- ocspStatus
 	ch <- ocspProducedAt
 	ch <- ocspThisUpdate
@@ -245,28 +251,45 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	if len(state.OCSPResponse) > 0 {
-		ocspResponse, err := ocsp.ParseResponse(state.OCSPResponse, nil)
-		if err != nil {
-			log.Errorln(err)
-		} else {
-			ch <- prometheus.MustNewConstMetric(
-				ocspStatus, prometheus.GaugeValue, float64(ocspResponse.Status),
-			)
-			ch <- prometheus.MustNewConstMetric(
-				ocspProducedAt, prometheus.GaugeValue, float64(ocspResponse.ProducedAt.Unix()),
-			)
-			ch <- prometheus.MustNewConstMetric(
-				ocspThisUpdate, prometheus.GaugeValue, float64(ocspResponse.ThisUpdate.Unix()),
-			)
-			ch <- prometheus.MustNewConstMetric(
-				ocspNextUpdate, prometheus.GaugeValue, float64(ocspResponse.NextUpdate.Unix()),
-			)
-			ch <- prometheus.MustNewConstMetric(
-				ocspRevokedAt, prometheus.GaugeValue, float64(ocspResponse.RevokedAt.Unix()),
-			)
-		}
+	if err := collectOCSPMetrics(ch, state); err != nil {
+		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, e.target, e.module.Prober, e.timeout)
 	}
+}
+
+func collectOCSPMetrics(ch chan<- prometheus.Metric, state *tls.ConnectionState) error {
+	if len(state.OCSPResponse) > 0 {
+		resp, err := ocsp.ParseResponse(state.OCSPResponse, nil)
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				ocspStapled, prometheus.GaugeValue, 0,
+			)
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			ocspStapled, prometheus.GaugeValue, 1,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspStatus, prometheus.GaugeValue, float64(resp.Status),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspProducedAt, prometheus.GaugeValue, float64(resp.ProducedAt.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspThisUpdate, prometheus.GaugeValue, float64(resp.ThisUpdate.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspNextUpdate, prometheus.GaugeValue, float64(resp.NextUpdate.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspRevokedAt, prometheus.GaugeValue, float64(resp.RevokedAt.Unix()),
+		)
+	} else {
+		ch <- prometheus.MustNewConstMetric(
+			ocspStapled, prometheus.GaugeValue, 0,
+		)
+	}
+
+	return nil
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
