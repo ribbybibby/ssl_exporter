@@ -9,6 +9,9 @@ modules:
     prober: https
     https:
       proxy_url: "socks5://localhost:8123"
+  https_timeout:
+    prober: https
+    timeout: 3s
   tcp:
     prober: tcp
   tcp_servername:

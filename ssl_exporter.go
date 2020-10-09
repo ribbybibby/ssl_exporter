@@ -227,24 +227,27 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 		return
 	}
 
-	// The following timeout block was taken wholly from the blackbox exporter
-	//   https://github.com/prometheus/blackbox_exporter/blob/master/main.go
-	var timeoutSeconds float64
-	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
-		var err error
-		timeoutSeconds, err = strconv.ParseFloat(v, 64)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to parse timeout from Prometheus header: %s", err), http.StatusInternalServerError)
-			return
+	timeout := module.Timeout
+	if timeout == 0 {
+		// The following timeout block was taken wholly from the blackbox exporter
+		//   https://github.com/prometheus/blackbox_exporter/blob/master/main.go
+		var timeoutSeconds float64
+		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+			var err error
+			timeoutSeconds, err = strconv.ParseFloat(v, 64)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to parse timeout from Prometheus header: %s", err), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			timeoutSeconds = 10
 		}
-	} else {
-		timeoutSeconds = 10
-	}
-	if timeoutSeconds == 0 {
-		timeoutSeconds = 10
-	}
+		if timeoutSeconds == 0 {
+			timeoutSeconds = 10
+		}
 
-	timeout := time.Duration((timeoutSeconds) * 1e9)
+		timeout = time.Duration((timeoutSeconds) * 1e9)
+	}
 
 	target := r.URL.Query().Get("target")
 	if target == "" {
