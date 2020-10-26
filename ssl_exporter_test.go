@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 	"golang.org/x/crypto/ocsp"
@@ -39,7 +38,7 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -100,7 +99,7 @@ func TestProbeHandlerHTTPSTimeout(t *testing.T) {
 			"https": config.Module{
 				Prober:  "https",
 				Timeout: 1 * time.Second,
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -186,7 +185,7 @@ func TestProbeHandlerHTTPSVerifiedChains(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -305,7 +304,7 @@ func TestProbeHandlerHTTPSClientAuthWrongClientCert(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile:   caFile,
 					CertFile: certFile,
 					KeyFile:  keyFile,
@@ -340,7 +339,7 @@ func TestProbeHandlerTCP(t *testing.T) {
 		Modules: map[string]config.Module{
 			"tcp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -390,7 +389,7 @@ func TestProbeHandlerTCPTimeout(t *testing.T) {
 			"tcp": config.Module{
 				Prober:  "tcp",
 				Timeout: 1 * time.Second,
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -445,7 +444,7 @@ func TestProbeHandlerTCPOCSP(t *testing.T) {
 		Modules: map[string]config.Module{
 			"tcp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -557,7 +556,7 @@ func TestProbeHandlerTCPVerifiedChains(t *testing.T) {
 		Modules: map[string]config.Module{
 			"tcp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -660,7 +659,7 @@ func TestProbeHandlerTCPExpired(t *testing.T) {
 		Modules: map[string]config.Module{
 			"tcp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
@@ -700,7 +699,7 @@ func TestProbeHandlerTCPExpiredInsecure(t *testing.T) {
 		Modules: map[string]config.Module{
 			"tcp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile:             caFile,
 					InsecureSkipVerify: true,
 				},
@@ -752,7 +751,7 @@ func TestProbeHandlerProxy(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 				HTTPS: config.HTTPSProbe{
@@ -791,7 +790,7 @@ func TestProbeHandlerProxy(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 				HTTPS: config.HTTPSProbe{
@@ -828,7 +827,7 @@ func TestProbeHandlerTCPStartTLSSMTP(t *testing.T) {
 		Modules: map[string]config.Module{
 			"smtp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 				TCP: config.TCPProbe{
@@ -874,7 +873,7 @@ func TestProbeHandlerTCPStartTLSFTP(t *testing.T) {
 		Modules: map[string]config.Module{
 			"ftp": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 				TCP: config.TCPProbe{
@@ -920,7 +919,7 @@ func TestProbeHandlerTCPStartTLSIMAP(t *testing.T) {
 		Modules: map[string]config.Module{
 			"imap": config.Module{
 				Prober: "tcp",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 				TCP: config.TCPProbe{

@@ -4,6 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -12,11 +20,6 @@ import (
 	"github.com/ribbybibby/ssl_exporter/prober"
 	"golang.org/x/crypto/ocsp"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"net/http"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -93,10 +96,12 @@ var (
 
 // Exporter is the exporter type...
 type Exporter struct {
-	target  string
-	prober  prober.ProbeFn
-	timeout time.Duration
-	module  config.Module
+	target         string
+	prober         prober.ProbeFn
+	timeout        time.Duration
+	module         config.Module
+	tlsConfig      *tls.Config
+	verifiedChains [][]*x509.Certificate
 }
 
 // Describe metrics
@@ -122,7 +127,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		proberType, prometheus.GaugeValue, 1, e.module.Prober,
 	)
 
-	state, err := e.prober(e.target, e.module, e.timeout)
+	state, err := e.probe()
 	if err != nil {
 		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, e.target, e.module.Prober, e.timeout)
 		ch <- prometheus.MustNewConstMetric(
@@ -131,29 +136,18 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	// If the probe returned a nil error then consider the tls connection a success
+	ch <- prometheus.MustNewConstMetric(
+		tlsConnectSuccess, prometheus.GaugeValue, 1,
+	)
+
 	// Get the TLS version from the connection state and export it as a metric
 	ch <- prometheus.MustNewConstMetric(
 		tlsVersion, prometheus.GaugeValue, 1, getTLSVersion(state),
 	)
 
-	// Retrieve certificates from the connection state
-	peerCertificates := state.PeerCertificates
-	if len(peerCertificates) < 1 {
-		log.Errorf("error=No certificates found in connection state. target=%s prober=%s", e.target, e.module.Prober)
-		ch <- prometheus.MustNewConstMetric(
-			tlsConnectSuccess, prometheus.GaugeValue, 0,
-		)
-		return
-	}
-
-	// If there are peer certificates in the connection state then consider
-	// the tls connection a success
-	ch <- prometheus.MustNewConstMetric(
-		tlsConnectSuccess, prometheus.GaugeValue, 1,
-	)
-
-	// Remove duplicate certificates from the response
-	peerCertificates = uniq(peerCertificates)
+	// Retrieve certificates from the connection state and remove duplicates
+	peerCertificates := uniq(state.PeerCertificates)
 
 	// Loop through peer certificates and create metrics
 	for _, cert := range peerCertificates {
@@ -188,8 +182,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	// Retrieve the list of verified chains from the connection state
-	verifiedChains := state.VerifiedChains
+	// The custom TLS verification should have populated the verifiedChains
+	// on the exporter (if there are any)
+	verifiedChains := e.verifiedChains
 
 	// Sort the verified chains from the chain that is valid for longest to the chain
 	// that expires the soonest
@@ -290,6 +285,201 @@ func collectOCSPMetrics(ch chan<- prometheus.Metric, state *tls.ConnectionState)
 	}
 
 	return nil
+}
+
+// probe configures the TLSConfig, probes the target and returns the resulting
+// connection state
+func (e *Exporter) probe() (*tls.ConnectionState, error) {
+	if err := e.configureTLSConfig(); err != nil {
+		return nil, err
+	}
+
+	state, err := e.prober(e.target, e.module, e.timeout, e.tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(state.PeerCertificates) == 0 {
+		return nil, fmt.Errorf("No certificates found in connection state")
+	}
+
+	return state, nil
+}
+
+// configureTLSConfig creates and customizes the tls.Config used for the
+// connection
+func (e *Exporter) configureTLSConfig() error {
+	tlsConfig, err := config.NewTLSConfig(&e.module.TLSConfig)
+	if err != nil {
+		return err
+	}
+
+	// Override the standard connection verification with our own
+	tlsConfig.InsecureSkipVerify = true
+	tlsConfig.VerifyConnection = e.verifyConnection
+
+	if e.module.Prober == "tcp" && tlsConfig.ServerName == "" {
+		host, _, err := net.SplitHostPort(e.target)
+		if err != nil {
+			return err
+		}
+		tlsConfig.ServerName = host
+	}
+
+	e.tlsConfig = tlsConfig
+
+	return nil
+}
+
+// verifyConnection provides custom verification for the TLS connection
+func (e *Exporter) verifyConnection(state tls.ConnectionState) error {
+	if !e.module.TLSConfig.InsecureSkipVerify {
+		var verifyFunc func(*tls.ConnectionState) ([][]*x509.Certificate, error)
+
+		verifyFunc = e.verifyPKIX
+		if e.module.TLSConfig.DANE.Verify {
+			verifyFunc = e.verifyDANE
+		}
+
+		verifiedChains, err := verifyFunc(&state)
+		if err != nil {
+			return err
+		}
+
+		e.verifiedChains = verifiedChains
+	}
+
+	return nil
+}
+
+// verifyPKIX performs typical PKIX verification of the target certificates
+func (e *Exporter) verifyPKIX(state *tls.ConnectionState) ([][]*x509.Certificate, error) {
+	opts := x509.VerifyOptions{
+		Roots:         e.tlsConfig.RootCAs,
+		DNSName:       state.ServerName,
+		Intermediates: x509.NewCertPool(),
+	}
+	for _, cert := range state.PeerCertificates[1:] {
+		opts.Intermediates.AddCert(cert)
+	}
+	return state.PeerCertificates[0].Verify(opts)
+}
+
+// verifyDANE performs DANE verification
+func (e *Exporter) verifyDANE(state *tls.ConnectionState) ([][]*x509.Certificate, error) {
+	// Get the TLSA record name from the target
+	host, port, err := net.SplitHostPort(e.target)
+	if err != nil {
+		return [][]*x509.Certificate{}, err
+	}
+	name, err := dns.TLSAName(dns.Fqdn(host), port, "tcp")
+	if err != nil {
+		return [][]*x509.Certificate{}, err
+	}
+
+	m := &dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			RecursionDesired: true,
+			Id:               dns.Id(),
+		},
+		Question: []dns.Question{
+			dns.Question{
+				Name:   name,
+				Qtype:  dns.TypeTLSA,
+				Qclass: dns.ClassINET,
+			},
+		},
+	}
+
+	c := &dns.Client{}
+
+	// Retrieve nameservers from resolv.conf
+	resolvConf := "/etc/resolv.conf"
+	cc, err := dns.ClientConfigFromFile(resolvConf)
+	if err != nil {
+		return [][]*x509.Certificate{}, err
+	}
+	if len(cc.Servers) == 0 {
+		return [][]*x509.Certificate{}, fmt.Errorf("no nameservers found in %s", resolvConf)
+	}
+
+	for _, server := range cc.Servers {
+		in, _, err := c.Exchange(m, server+":53")
+		if err != nil {
+			log.Errorln(err)
+			continue
+		}
+
+		for _, rr := range in.Answer {
+			tr, ok := rr.(*dns.TLSA)
+			if !ok {
+				continue
+			}
+			switch tr.Usage {
+			case 0:
+				// Record must be in the verified chain,
+				// not including leaf AND must pass pkix
+				verifiedChains, err := e.verifyPKIX(state)
+				if err == nil {
+					for _, chain := range verifiedChains {
+						for _, cert := range chain[1:] {
+							if err := tr.Verify(cert); err == nil {
+								return verifiedChains, nil
+							}
+						}
+					}
+				}
+			case 1:
+				// Must match leaf certificate
+				// AND must pass pkix
+				verifiedChains, err := e.verifyPKIX(state)
+				if err == nil {
+					if err := tr.Verify(state.PeerCertificates[0]); err == nil {
+						return verifiedChains, nil
+					}
+				}
+			case 2:
+				// Must be in peer certificate chain, not
+				// including leaf
+				chains, err := verifyChain(state.PeerCertificates)
+				if err == nil {
+					for _, chain := range chains {
+						for _, cert := range chain[1:] {
+							if err := tr.Verify(cert); err == nil {
+								if err := state.PeerCertificates[0].VerifyHostname(e.tlsConfig.ServerName); err == nil {
+									return chains, nil
+								}
+							}
+						}
+					}
+				}
+			case 3:
+				// Must match leaf certificate
+				if err := tr.Verify(state.PeerCertificates[0]); err == nil {
+					return [][]*x509.Certificate{}, nil
+				}
+			}
+		}
+	}
+
+	return [][]*x509.Certificate{}, fmt.Errorf("can't find matching TLSA record for %s", name)
+}
+
+// verifyChain performs PKIX verification against the chain presented by the
+// server, without considering the root certificates of the client
+func verifyChain(certs []*x509.Certificate) ([][]*x509.Certificate, error) {
+	opts := x509.VerifyOptions{
+		Roots: x509.NewCertPool(),
+	}
+	opts.Roots.AddCert(certs[len(certs)-1])
+	if len(certs) >= 3 {
+		opts.Intermediates = x509.NewCertPool()
+		for _, cert := range certs[1:] {
+			opts.Intermediates.AddCert(cert)
+		}
+	}
+
+	return certs[0].Verify(opts)
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {

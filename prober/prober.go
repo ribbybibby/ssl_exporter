@@ -17,4 +17,4 @@ var (
 )
 
 // ProbeFn probes
-type ProbeFn func(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error)
+type ProbeFn func(target string, module config.Module, timeout time.Duration, tlsConfig *tls.Config) (*tls.ConnectionState, error)

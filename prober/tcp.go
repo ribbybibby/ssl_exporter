@@ -10,12 +10,11 @@ import (
 
 	"github.com/ribbybibby/ssl_exporter/config"
 
-	pconfig "github.com/prometheus/common/config"
 	"github.com/prometheus/common/log"
 )
 
 // ProbeTCP performs a tcp probe
-func ProbeTCP(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error) {
+func ProbeTCP(target string, module config.Module, timeout time.Duration, tlsConfig *tls.Config) (*tls.ConnectionState, error) {
 	dialer := &net.Dialer{Timeout: timeout}
 
 	conn, err := dialer.Dial("tcp", target)
@@ -33,19 +32,6 @@ func ProbeTCP(target string, module config.Module, timeout time.Duration) (*tls.
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	tlsConfig, err := pconfig.NewTLSConfig(&module.TLSConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if tlsConfig.ServerName == "" {
-		targetAddress, _, err := net.SplitHostPort(target)
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig.ServerName = targetAddress
 	}
 
 	tlsConn := tls.Client(conn, tlsConfig)

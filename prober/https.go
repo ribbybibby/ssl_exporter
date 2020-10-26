@@ -12,12 +12,10 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/ribbybibby/ssl_exporter/config"
-
-	pconfig "github.com/prometheus/common/config"
 )
 
 // ProbeHTTPS performs a https probe
-func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error) {
+func ProbeHTTPS(target string, module config.Module, timeout time.Duration, tlsConfig *tls.Config) (*tls.ConnectionState, error) {
 	if strings.HasPrefix(target, "http://") {
 		return nil, fmt.Errorf("Target is using http scheme: %s", target)
 	}
@@ -27,11 +25,6 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tl
 	}
 
 	targetURL, err := url.Parse(target)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig, err := pconfig.NewTLSConfig(&module.TLSConfig)
 	if err != nil {
 		return nil, err
 	}

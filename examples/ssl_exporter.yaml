@@ -28,3 +28,15 @@ modules:
     prober: tcp
     tcp:
       starttls: smtp
+  tcp_dane:
+    prober: tcp
+    tls_config:
+      dane:
+        verify: true
+  tcp_smtp_dane:
+    prober: tcp
+    tls_config:
+      dane:
+        verify: true
+    tcp:
+      starttls: smtp

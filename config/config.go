@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"os"
@@ -42,7 +43,6 @@ func LoadConfig(confFile string) (*Config, error) {
 	}
 
 	return c, nil
-
 }
 
 type Config struct {
@@ -50,11 +50,37 @@ type Config struct {
 }
 
 type Module struct {
-	Prober    string           `yaml:"prober,omitempty"`
-	Timeout   time.Duration    `yaml:"timeout,omitempty"`
-	TLSConfig config.TLSConfig `yaml:"tls_config,omitempty"`
-	HTTPS     HTTPSProbe       `yaml:"https,omitempty"`
-	TCP       TCPProbe         `yaml:"tcp,omitempty"`
+	Prober    string        `yaml:"prober,omitempty"`
+	Timeout   time.Duration `yaml:"timeout,omitempty"`
+	TLSConfig TLSConfig     `yaml:"tls_config,omitempty"`
+	HTTPS     HTTPSProbe    `yaml:"https,omitempty"`
+	TCP       TCPProbe      `yaml:"tcp,omitempty"`
+}
+
+// TLSConfig configures the options for TLS connections.
+type TLSConfig struct {
+	CAFile             string     `yaml:"ca_file,omitempty"`
+	CertFile           string     `yaml:"cert_file,omitempty"`
+	KeyFile            string     `yaml:"key_file,omitempty"`
+	ServerName         string     `yaml:"server_name,omitempty"`
+	InsecureSkipVerify bool       `yaml:"insecure_skip_verify"`
+	DANE               DANEConfig `yaml:"dane,omitempty"`
+}
+
+// DANEConfig configures DANE verification
+type DANEConfig struct {
+	Verify bool `yaml:"verify,omitempty"`
+}
+
+// NewTLSConfig creates a new tls.Config from the given TLSConfig
+func NewTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
+	return config.NewTLSConfig(&config.TLSConfig{
+		CAFile:             cfg.CAFile,
+		CertFile:           cfg.CertFile,
+		KeyFile:            cfg.KeyFile,
+		ServerName:         cfg.ServerName,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	})
 }
 
 type TCPProbe struct {

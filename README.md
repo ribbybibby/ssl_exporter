@@ -194,6 +194,17 @@ prober: <prober_string>
 
 # Used to verify the hostname for the targets.
 [ server_name: <string> ]
+
+# Configure DANE verification
+[ dane: <dane_config> ]
+```
+
+#### <dane_config>
+
+```
+# Verify the certificates presented by the server against TLSA records
+# retrieved from nameservers in /etc/resolv.conf
+[ verify: <boolean> | default = false ]
 ```
 
 #### <https_probe>
