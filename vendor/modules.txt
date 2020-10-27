@@ -41,6 +41,9 @@ github.com/prometheus/procfs/internal/util
 # github.com/sirupsen/logrus v1.7.0
 ## explicit
 github.com/sirupsen/logrus
+# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+## explicit
+golang.org/x/crypto/ocsp
 # golang.org/x/net v0.0.0-20201016165138-7b1cca2348c0
 ## explicit
 golang.org/x/net/http/httpguts

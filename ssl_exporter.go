@@ -4,19 +4,19 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net/http"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/prober"
+	"golang.org/x/crypto/ocsp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
@@ -59,6 +59,36 @@ var (
 		"NotAfter expressed as a Unix Epoch Time for a certificate in the list of verified chains",
 		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"}, nil,
 	)
+	ocspStapled = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_stapled"),
+		"If the connection state contains a stapled OCSP response",
+		nil, nil,
+	)
+	ocspStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_status"),
+		"The status in the OCSP response 0=Good 1=Revoked 2=Unknown",
+		nil, nil,
+	)
+	ocspProducedAt = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_produced_at"),
+		"The producedAt value in the OCSP response, expressed as a Unix Epoch Time",
+		nil, nil,
+	)
+	ocspThisUpdate = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_this_update"),
+		"The thisUpdate value in the OCSP response, expressed as a Unix Epoch Time",
+		nil, nil,
+	)
+	ocspNextUpdate = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_next_update"),
+		"The nextUpdate value in the OCSP response, expressed as a Unix Epoch Time",
+		nil, nil,
+	)
+	ocspRevokedAt = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "ocsp_response_revoked_at"),
+		"The revocationTime value in the OCSP response, expressed as a Unix Epoch Time",
+		nil, nil,
+	)
 )
 
 // Exporter is the exporter type...
@@ -78,6 +108,12 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- notBefore
 	ch <- verifiedNotAfter
 	ch <- verifiedNotBefore
+	ch <- ocspStapled
+	ch <- ocspStatus
+	ch <- ocspProducedAt
+	ch <- ocspThisUpdate
+	ch <- ocspNextUpdate
+	ch <- ocspRevokedAt
 }
 
 // Collect metrics
@@ -214,6 +250,46 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
+
+	if err := collectOCSPMetrics(ch, state); err != nil {
+		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, e.target, e.module.Prober, e.timeout)
+	}
+}
+
+func collectOCSPMetrics(ch chan<- prometheus.Metric, state *tls.ConnectionState) error {
+	if len(state.OCSPResponse) > 0 {
+		resp, err := ocsp.ParseResponse(state.OCSPResponse, nil)
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				ocspStapled, prometheus.GaugeValue, 0,
+			)
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			ocspStapled, prometheus.GaugeValue, 1,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspStatus, prometheus.GaugeValue, float64(resp.Status),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspProducedAt, prometheus.GaugeValue, float64(resp.ProducedAt.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspThisUpdate, prometheus.GaugeValue, float64(resp.ThisUpdate.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspNextUpdate, prometheus.GaugeValue, float64(resp.NextUpdate.Unix()),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			ocspRevokedAt, prometheus.GaugeValue, float64(resp.RevokedAt.Unix()),
+		)
+	} else {
+		ch <- prometheus.MustNewConstMetric(
+			ocspStapled, prometheus.GaugeValue, 0,
+		)
+	}
+
+	return nil
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
