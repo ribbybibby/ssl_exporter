@@ -97,6 +97,7 @@ Flags:
 | ssl_ocsp_response_revoked_at  | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                           |                                                               |
 | ssl_ocsp_response_status      | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                             |                                                               |
 | ssl_ocsp_response_stapled     | Does the connection state contain a stapled OCSP response? Boolean.                                     |                                                               |
+| ssl_ocsp_response_this_update | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
 | ssl_prober                    | The prober used by the exporter to connect to the target. Boolean.                                      | prober                                                        |
 | ssl_tls_connect_success       | Was the TLS connection successful? Boolean.                                                             |                                                               |
 | ssl_tls_version_info          | The TLS version used. Always 1.                                                                         | version                                                       |
