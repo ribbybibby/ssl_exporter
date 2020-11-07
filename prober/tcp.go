@@ -8,56 +8,41 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/ribbybibby/ssl_exporter/config"
-
-	pconfig "github.com/prometheus/common/config"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"github.com/ribbybibby/ssl_exporter/config"
 )
 
 // ProbeTCP performs a tcp probe
-func ProbeTCP(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error) {
+func ProbeTCP(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error {
+	tlsConfig, err := newTLSConfig(target, registry, &module.TLSConfig)
+	if err != nil {
+		return err
+	}
+
 	dialer := &net.Dialer{Timeout: timeout}
 
 	conn, err := dialer.Dial("tcp", target)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer conn.Close()
 
 	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return nil, fmt.Errorf("Error setting deadline")
+		return fmt.Errorf("Error setting deadline")
 	}
 
 	if module.TCP.StartTLS != "" {
 		err = startTLS(conn, module.TCP.StartTLS)
 		if err != nil {
-			return nil, err
+			return err
 		}
-	}
-
-	tlsConfig, err := pconfig.NewTLSConfig(&module.TLSConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if tlsConfig.ServerName == "" {
-		targetAddress, _, err := net.SplitHostPort(target)
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig.ServerName = targetAddress
 	}
 
 	tlsConn := tls.Client(conn, tlsConfig)
 	defer tlsConn.Close()
 
-	if err := tlsConn.Handshake(); err != nil {
-		return nil, err
-	}
-
-	state := tlsConn.ConnectionState()
-
-	return &state, nil
+	return tlsConn.Handshake()
 }
 
 type queryResponse struct {

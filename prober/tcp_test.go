@@ -9,6 +9,7 @@ import (
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 
+	"github.com/prometheus/client_golang/prometheus"
 	pconfig "github.com/prometheus/common/config"
 )
 
@@ -30,7 +31,9 @@ func TestProbeTCP(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }
@@ -56,7 +59,9 @@ func TestProbeTCPInvalidName(t *testing.T) {
 
 	_, listenPort, _ := net.SplitHostPort(server.Listener.Addr().String())
 
-	if _, err := ProbeTCP("localhost:"+listenPort, module, 10*time.Second); err == nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP("localhost:"+listenPort, module, 10*time.Second, registry); err == nil {
 		t.Fatalf("expected error but err was nil")
 	}
 }
@@ -83,7 +88,9 @@ func TestProbeTCPServerName(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP("localhost:"+listenPort, module, 10*time.Second); err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP("localhost:"+listenPort, module, 10*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }
@@ -114,7 +121,9 @@ func TestProbeTCPExpired(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 5*time.Second); err == nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 5*time.Second, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -146,13 +155,12 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 		},
 	}
 
-	state, err := ProbeTCP(server.Listener.Addr().String(), module, 5*time.Second)
-	if err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 5*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if state == nil {
-		t.Fatalf("expected state but got nil")
-	}
+
 }
 
 // TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
@@ -176,7 +184,9 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }
@@ -202,7 +212,9 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }
@@ -228,7 +240,9 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 		},
 	}
 
-	if _, err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second); err != nil {
+	registry := prometheus.NewRegistry()
+
+	if err := ProbeTCP(server.Listener.Addr().String(), module, 10*time.Second, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }

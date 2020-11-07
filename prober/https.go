@@ -1,7 +1,6 @@
 package prober
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,16 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/ribbybibby/ssl_exporter/config"
-
-	pconfig "github.com/prometheus/common/config"
 )
 
 // ProbeHTTPS performs a https probe
-func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error) {
+func ProbeHTTPS(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error {
+	tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
+	if err != nil {
+		return err
+	}
+
 	if strings.HasPrefix(target, "http://") {
-		return nil, fmt.Errorf("Target is using http scheme: %s", target)
+		return fmt.Errorf("Target is using http scheme: %s", target)
 	}
 
 	if !strings.HasPrefix(target, "https://") {
@@ -28,12 +31,7 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tl
 
 	targetURL, err := url.Parse(target)
 	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig, err := pconfig.NewTLSConfig(&module.TLSConfig)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	proxy := http.ProxyFromEnvironment
@@ -56,7 +54,7 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tl
 	// Issue a GET request to the target
 	resp, err := client.Get(targetURL.String())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		_, err := io.Copy(ioutil.Discard, resp.Body)
@@ -68,8 +66,8 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration) (*tl
 
 	// Check if the response from the target is encrypted
 	if resp.TLS == nil {
-		return nil, fmt.Errorf("The response from %s is unencrypted", targetURL.String())
+		return fmt.Errorf("The response from %s is unencrypted", targetURL.String())
 	}
 
-	return resp.TLS, nil
+	return nil
 }

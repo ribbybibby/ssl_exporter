@@ -1,9 +1,9 @@
 package prober
 
 import (
-	"crypto/tls"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
 )
 
@@ -17,4 +17,4 @@ var (
 )
 
 // ProbeFn probes
-type ProbeFn func(target string, module config.Module, timeout time.Duration) (*tls.ConnectionState, error)
+type ProbeFn func(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error
