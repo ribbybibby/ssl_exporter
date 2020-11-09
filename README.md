@@ -28,14 +28,16 @@ meaningful visualisations and consoles.
   - [Usage](#usage)
   - [Metrics](#metrics)
   - [Configuration](#configuration)
-    - [Configuration file](#configuration-file)
-      - [&lt;module&gt;](#module)
-      - [&lt;tls_config&gt;](#tls_config)
-      - [&lt;https_probe&gt;](#https_probe)
-      - [&lt;tcp_probe&gt;](#tcp_probe)
+    - [TCP](#tcp)
+    - [HTTPS](#https)
+    - [File](#file)
+  - [Configuration file](#configuration-file)
+    - [&lt;module&gt;](#module)
+    - [&lt;tls_config&gt;](#tls_config)
+    - [&lt;https_probe&gt;](#https_probe)
+    - [&lt;tcp_probe&gt;](#tcp_probe)
   - [Example Queries](#example-queries)
-  - [Peer Cerificates vs Verified Chain Certificates](#peer-cerificates-vs-verified-chain-certificates)
-  - [Proxying](#proxying)
+  - [Peer Certificates vs Verified Chain Certificates](#peer-certificates-vs-verified-chain-certificates)
   - [Grafana](#grafana)
 
 Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
@@ -47,7 +49,7 @@ Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
 Similarly to the blackbox_exporter, visiting
 [http://localhost:9219/probe?target=example.com:443](http://localhost:9219/probe?target=example.com:443)
-will return certificate metrics for example.com. The `ssl_tls_connect_success`
+will return certificate metrics for example.com. The `ssl_probe_success`
 metric indicates if the probe has been successful.
 
 ### Docker
@@ -88,23 +90,27 @@ Flags:
 
 ## Metrics
 
-| Metric                        | Meaning                                                                                                 | Labels                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| ssl_cert_not_after            | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                        | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_cert_not_before           | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                  | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_ocsp_response_next_update | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
-| ssl_ocsp_response_produced_at | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
-| ssl_ocsp_response_revoked_at  | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                           |                                                               |
-| ssl_ocsp_response_status      | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                             |                                                               |
-| ssl_ocsp_response_stapled     | Does the connection state contain a stapled OCSP response? Boolean.                                     |                                                               |
-| ssl_ocsp_response_this_update | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                               |                                                               |
-| ssl_prober                    | The prober used by the exporter to connect to the target. Boolean.                                      | prober                                                        |
-| ssl_tls_connect_success       | Was the TLS connection successful? Boolean.                                                             |                                                               |
-| ssl_tls_version_info          | The TLS version used. Always 1.                                                                         | version                                                       |
-| ssl_verified_cert_not_after   | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.       | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_verified_cert_not_before  | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time. | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| Metric                        | Meaning                                                                                                    | Labels                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ssl_cert_not_after            | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                           | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_cert_not_before           | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                     | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
+| ssl_file_cert_not_after       | The date after which a certificate found by the file prober expires. Expressed as a Unix Epoch Time.       | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou     |
+| ssl_file_cert_not_before      | The date before which a certificate found by the file prober is not valid. Expressed as a Unix Epoch Time. | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou     |
+| ssl_ocsp_response_next_update | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
+| ssl_ocsp_response_produced_at | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
+| ssl_ocsp_response_revoked_at  | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                              |                                                               |
+| ssl_ocsp_response_status      | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                                |                                                               |
+| ssl_ocsp_response_stapled     | Does the connection state contain a stapled OCSP response? Boolean.                                        |                                                               |
+| ssl_ocsp_response_this_update | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
+| ssl_probe_success             | Was the probe successful? Boolean.                                                                         |                                                               |
+| ssl_prober                    | The prober used by the exporter to connect to the target. Boolean.                                         | prober                                                        |
+| ssl_tls_version_info          | The TLS version used. Always 1.                                                                            | version                                                       |
+| ssl_verified_cert_not_after   | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.          | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| ssl_verified_cert_not_before  | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time.    | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
 
 ## Configuration
+
+### TCP
 
 Just like with the blackbox_exporter, you should pass the targets to a single
 instance of the exporter in a scrape config with a clever bit of relabelling.
@@ -128,8 +134,11 @@ scrape_configs:
         replacement: 127.0.0.1:9219 # SSL exporter.
 ```
 
-By default the exporter will make a TCP connection to the target. You can change
-this to https by setting the module parameter:
+### HTTPS
+
+By default the exporter will make a TCP connection to the target. This will be
+suitable for most cases but if you want to take advantage of http proxying you
+can use a HTTPS client by setting the `https` module parameter:
 
 ```yml
 scrape_configs:
@@ -150,7 +159,53 @@ scrape_configs:
         replacement: 127.0.0.1:9219
 ```
 
-### Configuration file
+This will use proxy servers discovered by the environment variables `HTTP_PROXY`,
+`HTTPS_PROXY` and `ALL_PROXY`. Or, you can set the `proxy_url` option in the module
+configuration.
+
+The latter takes precedence.
+
+### File
+
+The `file` prober exports `ssl_file_cert_not_after` and
+`ssl_file_cert_not_before` for PEM encoded certificates found in local files.
+
+Files local to the exporter can be scraped by providing them as the target
+parameter:
+
+```
+curl "localhost:9219/probe?module=file&target=/etc/ssl/cert.pem"
+```
+
+The target parameter supports globbing (as provided by the
+[doublestar](https://github.com/bmatcuk/doublestar) package),
+which allows you to capture multiple files at once:
+
+```
+curl "localhost:9219/probe?module=file&target=/etc/ssl/**/*.pem"
+```
+
+One specific usage of this prober could be to run the exporter as a DaemonSet in
+Kubernetes and then scrape each instance to check the expiry of certificates on
+each node:
+
+```
+scrape_configs:
+  - job_name: "ssl"
+    metrics_path: /probe
+    params:
+      module: ["file"]
+      target: ["/etc/kubernetes/**/*.crt"]
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: ^(.*):(.*)$
+        target_label: __address__
+        replacement: ${1}:9219
+```
+
+## Configuration file
 
 You can provide further module configuration by providing the path to a
 configuration file with `--config.file`. The file is written in yaml format,
@@ -160,10 +215,10 @@ defined by the schema below.
 modules: [<module>]
 ```
 
-#### \<module\>
+### \<module\>
 
 ```
-# The protocol over which the probe will take place (https, tcp)
+# The type of probe (https, tcp, file)
 prober: <prober_string>
 
 # How long the probe will wait before giving up.
@@ -177,7 +232,7 @@ prober: <prober_string>
 [ tcp: <tcp_probe> ]
 ```
 
-#### <tls_config>
+### <tls_config>
 
 ```
 # Disable target certificate validation.
@@ -196,14 +251,14 @@ prober: <prober_string>
 [ server_name: <string> ]
 ```
 
-#### <https_probe>
+### <https_probe>
 
 ```
 # HTTP proxy server to use to connect to the targets.
 [ proxy_url: <string> ]
 ```
 
-#### <tcp_probe>
+### <tcp_probe>
 
 ```
 # Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap)
@@ -237,13 +292,13 @@ Number of certificates presented by the server:
 count(ssl_cert_not_after) by (instance)
 ```
 
-Identify instances that have failed to create a valid SSL connection:
+Identify failed probes:
 
 ```
-ssl_tls_connect_success == 0
+ssl_probe_success == 0
 ```
 
-## Peer Cerificates vs Verified Chain Certificates
+## Peer Certificates vs Verified Chain Certificates
 
 Metrics are exported for the `NotAfter` and `NotBefore` fields for peer
 certificates as well as for the verified chain that is
@@ -276,20 +331,6 @@ It's very important to note that a query of this kind only represents the chain
 of trust between the exporter and the target. Genuine clients may hold different
 root certs than the exporter and therefore have different verified chains of
 trust.
-
-## Proxying
-
-The `https` prober supports the use of proxy servers discovered by the
-environment variables `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY`.
-
-For instance:
-
-    $ export HTTPS_PROXY=localhost:8888
-    $ ./ssl_exporter
-
-Or, you can set the `proxy_url` option in the module.
-
-The latter takes precedence.
 
 ## Grafana
 

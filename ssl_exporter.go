@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -52,6 +53,9 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 		timeout = time.Duration((timeoutSeconds) * 1e9)
 	}
 
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+
 	target := r.URL.Query().Get("target")
 	if target == "" {
 		http.Error(w, "Target parameter is missing", http.StatusBadRequest)
@@ -65,10 +69,10 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	}
 
 	var (
-		tlsConnectSuccess = prometheus.NewGauge(
+		probeSuccess = prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: prometheus.BuildFQName(namespace, "", "tls_connect_success"),
-				Help: "If the TLS connection was a success",
+				Name: prometheus.BuildFQName(namespace, "", "probe_success"),
+				Help: "If the probe was a success",
 			},
 		)
 		proberType = prometheus.NewGaugeVec(
@@ -81,16 +85,15 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	)
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(tlsConnectSuccess, proberType)
+	registry.MustRegister(probeSuccess, proberType)
 	proberType.WithLabelValues(module.Prober).Set(1)
 
-	err := probeFunc(target, module, timeout, registry)
+	err := probeFunc(ctx, target, module, registry)
 	if err != nil {
 		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, target, module.Prober, timeout)
-		tlsConnectSuccess.Set(0)
-
+		probeSuccess.Set(0)
 	} else {
-		tlsConnectSuccess.Set(1)
+		probeSuccess.Set(1)
 	}
 
 	// Serve

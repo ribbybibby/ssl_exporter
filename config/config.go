@@ -22,6 +22,9 @@ var (
 			"https": Module{
 				Prober: "https",
 			},
+			"file": Module{
+				Prober: "file",
+			},
 		},
 	}
 )
@@ -42,7 +45,6 @@ func LoadConfig(confFile string) (*Config, error) {
 	}
 
 	return c, nil
-
 }
 
 type Config struct {

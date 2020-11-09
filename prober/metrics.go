@@ -3,12 +3,16 @@ package prober
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"io/ioutil"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 	"golang.org/x/crypto/ocsp"
 )
 
@@ -82,7 +86,13 @@ func collectCertificateMetrics(certs []*x509.Certificate, registry *prometheus.R
 	)
 	registry.MustRegister(notAfter, notBefore)
 
-	for _, cert := range uniq(certs) {
+	certs = uniq(certs)
+
+	if len(certs) == 0 {
+		return fmt.Errorf("No certificates found")
+	}
+
+	for _, cert := range certs {
 		labels := labelValues(cert)
 
 		if !cert.NotAfter.IsZero() {
@@ -215,6 +225,65 @@ func collectOCSPMetrics(ocspResponse []byte, registry *prometheus.Registry) erro
 	ocspThisUpdate.Set(float64(resp.ThisUpdate.Unix()))
 	ocspNextUpdate.Set(float64(resp.NextUpdate.Unix()))
 	ocspRevokedAt.Set(float64(resp.RevokedAt.Unix()))
+
+	return nil
+}
+
+func collectFileMetrics(files []string, registry *prometheus.Registry) error {
+	var (
+		totalCerts   []*x509.Certificate
+		fileNotAfter = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "file_cert_not_after"),
+				Help: "NotAfter expressed as a Unix Epoch Time for a certificate found in a file",
+			},
+			[]string{"file", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+		fileNotBefore = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "file_cert_not_before"),
+				Help: "NotBefore expressed as a Unix Epoch Time for a certificate found in a file",
+			},
+			[]string{"file", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+	)
+	registry.MustRegister(fileNotAfter, fileNotBefore)
+
+	for _, f := range files {
+		data, err := ioutil.ReadFile(f)
+		if err != nil {
+			log.Debugf("Error reading file: %s error=%s", f, err)
+			continue
+		}
+		var certs []*x509.Certificate
+		for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
+			if block.Type == "CERTIFICATE" {
+				cert, err := x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					return err
+				}
+				if !contains(certs, cert) {
+					certs = append(certs, cert)
+				}
+			}
+		}
+		totalCerts = append(totalCerts, certs...)
+		for _, cert := range certs {
+			labels := append([]string{f}, labelValues(cert)...)
+
+			if !cert.NotAfter.IsZero() {
+				fileNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotBefore.IsZero() {
+				fileNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
+			}
+		}
+	}
+
+	if len(totalCerts) == 0 {
+		return fmt.Errorf("No certificates found")
+	}
 
 	return nil
 }

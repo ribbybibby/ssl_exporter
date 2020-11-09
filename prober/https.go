@@ -1,13 +1,13 @@
 package prober
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -15,7 +15,7 @@ import (
 )
 
 // ProbeHTTPS performs a https probe
-func ProbeHTTPS(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error {
+func ProbeHTTPS(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
 	tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
 	if err != nil {
 		return err
@@ -48,11 +48,15 @@ func ProbeHTTPS(target string, module config.Module, timeout time.Duration, regi
 			Proxy:             proxy,
 			DisableKeepAlives: true,
 		},
-		Timeout: timeout,
 	}
 
 	// Issue a GET request to the target
-	resp, err := client.Get(targetURL.String())
+	request, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
+	if err != nil {
+		return err
+	}
+	request = request.WithContext(ctx)
+	resp, err := client.Do(request)
 	if err != nil {
 		return err
 	}

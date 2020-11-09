@@ -52,8 +52,8 @@ func TestProbeHandlerHTTPS(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 
 	// Check probe metric
@@ -112,8 +112,8 @@ func TestProbeHandlerHTTPSTimeout(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0"); !ok {
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 
 	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"https\"} 1"); !ok {
@@ -211,8 +211,8 @@ func TestProbeHandlerHTTPSNoServer(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0"); !ok {
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -235,9 +235,9 @@ func TestProbeHandlerHTTPSSpaces(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -260,9 +260,9 @@ func TestProbeHandlerHTTPSHTTP(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -319,9 +319,9 @@ func TestProbeHandlerHTTPSClientAuthWrongClientCert(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -353,8 +353,8 @@ func TestProbeHandlerTCP(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 
 	// Check probe metric
@@ -402,8 +402,8 @@ func TestProbeHandlerTCPTimeout(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0"); !ok {
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 
 	if ok := strings.Contains(rr.Body.String(), "ssl_prober{prober=\"tcp\"} 1"); !ok {
@@ -583,8 +583,8 @@ func TestProbeHandlerTCPNoServer(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0"); !ok {
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -607,9 +607,9 @@ func TestProbeHandlerTCPSpaces(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -632,9 +632,9 @@ func TestProbeHandlerTCPHTTP(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -672,9 +672,9 @@ func TestProbeHandlerTCPExpired(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 }
 
@@ -713,9 +713,9 @@ func TestProbeHandlerTCPExpiredInsecure(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1")
+	ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1")
 	if !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 }
 
@@ -769,8 +769,8 @@ func TestProbeHandlerProxy(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 0"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 0`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 0"); !ok {
+		t.Errorf("expected `ssl_probe_success 0`")
 	}
 
 	// Test with an actual proxy server
@@ -808,8 +808,8 @@ func TestProbeHandlerProxy(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 }
 
@@ -844,8 +844,8 @@ func TestProbeHandlerTCPStartTLSSMTP(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 
 	// Check probe metric
@@ -890,8 +890,8 @@ func TestProbeHandlerTCPStartTLSFTP(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 
 	// Check probe metric
@@ -936,8 +936,8 @@ func TestProbeHandlerTCPStartTLSIMAP(t *testing.T) {
 	}
 
 	// Check success metric
-	if ok := strings.Contains(rr.Body.String(), "ssl_tls_connect_success 1"); !ok {
-		t.Errorf("expected `ssl_tls_connect_success 1`")
+	if ok := strings.Contains(rr.Body.String(), "ssl_probe_success 1"); !ok {
+		t.Errorf("expected `ssl_probe_success 1`")
 	}
 
 	// Check probe metric

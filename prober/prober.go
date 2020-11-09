@@ -1,7 +1,7 @@
 package prober
 
 import (
-	"time"
+	"context"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
@@ -13,8 +13,9 @@ var (
 		"https": ProbeHTTPS,
 		"http":  ProbeHTTPS,
 		"tcp":   ProbeTCP,
+		"file":  ProbeFile,
 	}
 )
 
 // ProbeFn probes
-type ProbeFn func(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error
+type ProbeFn func(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error

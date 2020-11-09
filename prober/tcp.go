@@ -2,11 +2,11 @@ package prober
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"regexp"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -14,21 +14,21 @@ import (
 )
 
 // ProbeTCP performs a tcp probe
-func ProbeTCP(target string, module config.Module, timeout time.Duration, registry *prometheus.Registry) error {
+func ProbeTCP(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
 	tlsConfig, err := newTLSConfig(target, registry, &module.TLSConfig)
 	if err != nil {
 		return err
 	}
 
-	dialer := &net.Dialer{Timeout: timeout}
-
-	conn, err := dialer.Dial("tcp", target)
+	dialer := &net.Dialer{}
+	conn, err := dialer.DialContext(ctx, "tcp", target)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+	deadline, _ := ctx.Deadline()
+	if err := conn.SetDeadline(deadline); err != nil {
 		return fmt.Errorf("Error setting deadline")
 	}
 

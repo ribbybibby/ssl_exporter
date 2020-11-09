@@ -240,7 +240,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "(up{job=~\"$job\", instance=~\"$instance\"} == 0 or ssl_tls_connect_success{job=~\"$job\", instance=~\"$instance\"} == 0)^0",
+          "expr": "(up{job=~\"$job\", instance=~\"$instance\"} == 0 or ssl_probe_success{job=~\"$job\", instance=~\"$instance\"} == 0)^0",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}}",
@@ -407,7 +407,7 @@
       ],
       "targets": [
         {
-          "expr": "ssl_tls_connect_success{instance=~\"$instance\",job=~\"$job\"} == 0",
+          "expr": "ssl_probe_success{instance=~\"$instance\",job=~\"$job\"} == 0",
           "format": "table",
           "instant": true,
           "intervalFactor": 1,
@@ -585,14 +585,14 @@
           "value": ["$__all"]
         },
         "datasource": "Prometheus",
-        "definition": "label_values(ssl_tls_connect_success, job)",
+        "definition": "label_values(ssl_probe_success, job)",
         "hide": 0,
         "includeAll": true,
         "label": "Job",
         "multi": true,
         "name": "job",
         "options": [],
-        "query": "label_values(ssl_tls_connect_success, job)",
+        "query": "label_values(ssl_probe_success, job)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
