@@ -4,14 +4,11 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 	v1 "k8s.io/api/core/v1"
@@ -193,50 +190,4 @@ func checkKubernetesMetrics(cert *x509.Certificate, namespace, name, key string,
 	for _, res := range expectedResults {
 		checkRegistryResults(res, mfs, t)
 	}
-}
-
-func checkRegistryResults(expRes *registryResult, mfs []*dto.MetricFamily, t *testing.T) {
-	var results []*registryResult
-	for _, mf := range mfs {
-		for _, metric := range mf.Metric {
-			labelValues := make(map[string]string)
-			for _, l := range metric.GetLabel() {
-				labelValues[l.GetName()] = l.GetValue()
-			}
-			results = append(results, &registryResult{
-				Name:        mf.GetName(),
-				LabelValues: labelValues,
-				Value:       metric.GetGauge().GetValue(),
-			})
-		}
-	}
-	var ok bool
-	var resStr string
-	for _, res := range results {
-		resStr = resStr + "\n" + res.String()
-		if reflect.DeepEqual(res, expRes) {
-			ok = true
-		}
-	}
-	if !ok {
-		t.Fatalf("Expected %s, got: %s", expRes.String(), resStr)
-	}
-}
-
-type registryResult struct {
-	Name        string
-	LabelValues map[string]string
-	Value       float64
-}
-
-func (rr *registryResult) String() string {
-	var labels []string
-	for k, v := range rr.LabelValues {
-		labels = append(labels, k+"=\""+v+"\"")
-	}
-	m := rr.Name
-	if len(labels) > 0 {
-		m = fmt.Sprintf("%s{%s}", m, strings.Join(labels, ","))
-	}
-	return fmt.Sprintf("%s %f", m, rr.Value)
 }

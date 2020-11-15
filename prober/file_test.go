@@ -15,8 +15,6 @@ import (
 	"github.com/ribbybibby/ssl_exporter/test"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	dto "github.com/prometheus/client_model/go"
 )
 
 // TestProbeFile tests a file
@@ -164,14 +162,14 @@ func checkFileMetrics(cert *x509.Certificate, certFile string, registry *prometh
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	ips := ","
 	for _, ip := range cert.IPAddresses {
 		ips = ips + ip.String() + ","
 	}
-	expectedLabels := map[string]map[string]map[string]string{
-		certFile: {
-			"ssl_file_cert_not_after": {
+	expectedResults := []*registryResult{
+		&registryResult{
+			Name: "ssl_file_cert_not_after",
+			LabelValues: map[string]string{
 				"file":      certFile,
 				"serial_no": cert.SerialNumber.String(),
 				"issuer_cn": cert.Issuer.CommonName,
@@ -181,7 +179,11 @@ func checkFileMetrics(cert *x509.Certificate, certFile string, registry *prometh
 				"emails":    "," + strings.Join(cert.EmailAddresses, ",") + ",",
 				"ou":        "," + strings.Join(cert.Subject.OrganizationalUnit, ",") + ",",
 			},
-			"ssl_file_cert_not_before": {
+			Value: float64(cert.NotAfter.Unix()),
+		},
+		&registryResult{
+			Name: "ssl_file_cert_not_before",
+			LabelValues: map[string]string{
 				"file":      certFile,
 				"serial_no": cert.SerialNumber.String(),
 				"issuer_cn": cert.Issuer.CommonName,
@@ -191,89 +193,10 @@ func checkFileMetrics(cert *x509.Certificate, certFile string, registry *prometh
 				"emails":    "," + strings.Join(cert.EmailAddresses, ",") + ",",
 				"ou":        "," + strings.Join(cert.Subject.OrganizationalUnit, ",") + ",",
 			},
+			Value: float64(cert.NotBefore.Unix()),
 		},
 	}
-	checkFileRegistryLabels(expectedLabels, mfs, t)
-
-	expectedResults := map[string]map[string]float64{
-		certFile: {
-			"ssl_file_cert_not_after":  float64(cert.NotAfter.Unix()),
-			"ssl_file_cert_not_before": float64(cert.NotBefore.Unix()),
-		},
-	}
-	checkFileRegistryResults(expectedResults, mfs, t)
-}
-
-// Check if expected results are in the registry
-func checkFileRegistryResults(expRes map[string]map[string]float64, mfs []*dto.MetricFamily, t *testing.T) {
-	results := make(map[string]map[string]float64)
-	for _, mf := range mfs {
-		for _, metric := range mf.Metric {
-			for _, l := range metric.GetLabel() {
-				if l.GetName() == "file" {
-					if _, ok := results[l.GetValue()]; !ok {
-						results[l.GetValue()] = make(map[string]float64)
-					}
-					results[l.GetValue()][mf.GetName()] = metric.GetGauge().GetValue()
-				}
-			}
-		}
-	}
-	for expf, expr := range expRes {
-		for expm, expv := range expr {
-			if _, ok := results[expf]; !ok {
-				t.Fatalf("Could not find results for file %v", expf)
-			}
-			v, ok := results[expf][expm]
-			if !ok {
-				t.Fatalf("Expected metric %v not found in returned metrics for file %v", expm, expf)
-			}
-			if v != expv {
-				t.Fatalf("Expected: %v: %v, got: %v: %v for file %v", expm, expv, expm, v, expf)
-			}
-		}
-	}
-}
-
-// Check if expected labels are in the registry
-func checkFileRegistryLabels(expRes map[string]map[string]map[string]string, mfs []*dto.MetricFamily, t *testing.T) {
-	results := make(map[string]map[string]map[string]string)
-	for _, mf := range mfs {
-		for _, metric := range mf.Metric {
-			for _, l := range metric.GetLabel() {
-				if l.GetName() == "file" {
-					if _, ok := results[l.GetValue()]; !ok {
-						results[l.GetValue()] = make(map[string]map[string]string)
-					}
-					results[l.GetValue()][mf.GetName()] = make(map[string]string)
-					for _, sl := range metric.GetLabel() {
-						results[l.GetValue()][mf.GetName()][sl.GetName()] = sl.GetValue()
-					}
-				}
-			}
-		}
-	}
-	for expf, expr := range expRes {
-		for expm, expl := range expr {
-			if _, ok := results[expf]; !ok {
-				t.Fatalf("Could not find results for file %v", expf)
-			}
-			l, ok := results[expf][expm]
-			if !ok {
-				t.Fatalf("Expected metric %v not found in returned metrics for file %v", expm, expf)
-			}
-			for expk, expv := range expl {
-				v, ok := l[expk]
-				if !ok {
-					t.Fatalf("Expected label %v for metric %v not found in returned metrics for file %v", expk, expm, expf)
-				}
-				if v != expv {
-					t.Fatalf("Expected %v{%q=%q}, got: %v{%q=%q} for file %v", expm, expk, expv, expm, expk, v, expf)
-				}
-			}
-			if len(l) != len(expl) {
-				t.Fatalf("Expected %v labels but got %v for metric %v and file %v", len(expl), len(l), expm, expf)
-			}
-		}
+	for _, res := range expectedResults {
+		checkRegistryResults(res, mfs, t)
 	}
 }
