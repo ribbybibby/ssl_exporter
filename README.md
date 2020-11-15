@@ -1,22 +1,8 @@
 # SSL Certificate Exporter
 
-The [blackbox_exporter](https://github.com/prometheus/blackbox_exporter) allows
-you to test the expiry date of a certificate as part of its HTTP(S) probe -
-which is great. It doesn't, however, tell you which certificate in the chain is
-nearing expiry or give you any other information that might be useful when
-sending alerts.
-
-For instance, there's a definite value in knowing, upon first receiving an
-alert, if it's a certificate you manage directly or one further up the chain.
-It's also not always necessarily clear from the address you're polling what kind
-of certificate renewal you're looking at. Is it a Let's Encrypt, in which case
-it should be handled by automation? Or your organisation's wildcard? Maybe the
-domain is managed by a third-party and you need to submit a ticket to get it
-renewed.
-
-Whatever it is, the SSL exporter gives you visibility over those dimensions at
-the point at which you receive an alert. It also allows you to produce more
-meaningful visualisations and consoles.
+Exports metrics for certificates collected from TCP probes, local files or
+Kubernetes secrets. The metrics are labelled with fields from the certificate,
+which allows for informational dashboards and flexible alert routing.
 
 ## Table of Contents
 
