@@ -31,11 +31,13 @@ meaningful visualisations and consoles.
     - [TCP](#tcp)
     - [HTTPS](#https)
     - [File](#file)
+    - [Kubernetes](#kubernetes)
   - [Configuration file](#configuration-file)
     - [&lt;module&gt;](#module)
     - [&lt;tls_config&gt;](#tls_config)
     - [&lt;https_probe&gt;](#https_probe)
     - [&lt;tcp_probe&gt;](#tcp_probe)
+    - [&lt;kubernetes_probe&gt;](#kubernetes_probe)
   - [Example Queries](#example-queries)
   - [Peer Certificates vs Verified Chain Certificates](#peer-certificates-vs-verified-chain-certificates)
   - [Grafana](#grafana)
@@ -90,23 +92,25 @@ Flags:
 
 ## Metrics
 
-| Metric                        | Meaning                                                                                                    | Labels                                                        |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| ssl_cert_not_after            | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                           | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_cert_not_before           | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                     | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou           |
-| ssl_file_cert_not_after       | The date after which a certificate found by the file prober expires. Expressed as a Unix Epoch Time.       | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou     |
-| ssl_file_cert_not_before      | The date before which a certificate found by the file prober is not valid. Expressed as a Unix Epoch Time. | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou     |
-| ssl_ocsp_response_next_update | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
-| ssl_ocsp_response_produced_at | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
-| ssl_ocsp_response_revoked_at  | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                              |                                                               |
-| ssl_ocsp_response_status      | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                                |                                                               |
-| ssl_ocsp_response_stapled     | Does the connection state contain a stapled OCSP response? Boolean.                                        |                                                               |
-| ssl_ocsp_response_this_update | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                  |                                                               |
-| ssl_probe_success             | Was the probe successful? Boolean.                                                                         |                                                               |
-| ssl_prober                    | The prober used by the exporter to connect to the target. Boolean.                                         | prober                                                        |
-| ssl_tls_version_info          | The TLS version used. Always 1.                                                                            | version                                                       |
-| ssl_verified_cert_not_after   | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.          | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
-| ssl_verified_cert_not_before  | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time.    | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| Metric                         | Meaning                                                                                                          | Labels                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ssl_cert_not_after             | The date after which a peer certificate expires. Expressed as a Unix Epoch Time.                                 | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                         |
+| ssl_cert_not_before            | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                           | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                         |
+| ssl_file_cert_not_after        | The date after which a certificate found by the file prober expires. Expressed as a Unix Epoch Time.             | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                   |
+| ssl_file_cert_not_before       | The date before which a certificate found by the file prober is not valid. Expressed as a Unix Epoch Time.       | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                   |
+| ssl_kubernetes_cert_not_after  | The date after which a certificate found by the kubernetes prober expires. Expressed as a Unix Epoch Time.       | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| ssl_kubernetes_cert_not_before | The date before which a certificate found by the kubernetes prober is not valid. Expressed as a Unix Epoch Time. | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou |
+| ssl_ocsp_response_next_update  | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             |
+| ssl_ocsp_response_produced_at  | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             |
+| ssl_ocsp_response_revoked_at   | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                                    |                                                                             |
+| ssl_ocsp_response_status       | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                                      |                                                                             |
+| ssl_ocsp_response_stapled      | Does the connection state contain a stapled OCSP response? Boolean.                                              |                                                                             |
+| ssl_ocsp_response_this_update  | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             |
+| ssl_probe_success              | Was the probe successful? Boolean.                                                                               |                                                                             |
+| ssl_prober                     | The prober used by the exporter to connect to the target. Boolean.                                               | prober                                                                      |
+| ssl_tls_version_info           | The TLS version used. Always 1.                                                                                  | version                                                                     |
+| ssl_verified_cert_not_after    | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.                | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou               |
+| ssl_verified_cert_not_before   | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time.          | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou               |
 
 ## Configuration
 
@@ -191,7 +195,7 @@ each node:
 
 ```
 scrape_configs:
-  - job_name: "ssl"
+  - job_name: "ssl-kubernetes-file"
     metrics_path: /probe
     params:
       module: ["file"]
@@ -204,6 +208,40 @@ scrape_configs:
         target_label: __address__
         replacement: ${1}:9219
 ```
+
+### Kubernetes
+
+The `kubernetes` prober exports `ssl_kubernetes_cert_not_after` and
+`ssl_kubernetes_cert_not_before` for PEM encoded certificates found in secrets
+of type `kubernetes.io/tls`.
+
+Provide the namespace and name of the secret in the form `<namespace>/<name>` as
+the target:
+
+```
+curl "localhost:9219/probe?module=kubernetes&target=kube-system/secret-name
+```
+
+Both the namespace and name portions of the target support glob matching (as provided by the
+[doublestar](https://github.com/bmatcuk/doublestar) package):
+
+```
+curl "localhost:9219/probe?module=kubernetes&target=kube-system/*
+
+```
+
+```
+curl "localhost:9219/probe?module=kubernetes&target=*/*
+
+```
+
+The exporter retrieves credentials and context configuration from the following
+sources in the following order:
+
+- The `kubeconfig` path in the module configuration
+- The `$KUBECONFIG` environment variable
+- The default configuration file (`$HOME/.kube/config`)
+- The in-cluster environment, if running in a pod
 
 ## Configuration file
 
@@ -218,7 +256,7 @@ modules: [<module>]
 ### \<module\>
 
 ```
-# The type of probe (https, tcp, file)
+# The type of probe (https, tcp, file, kubernetes)
 prober: <prober_string>
 
 # How long the probe will wait before giving up.
@@ -230,6 +268,7 @@ prober: <prober_string>
 # The specific probe configuration
 [ https: <https_probe> ]
 [ tcp: <tcp_probe> ]
+[ kubernetes: <kubernetes_probe> ]
 ```
 
 ### <tls_config>
@@ -263,6 +302,13 @@ prober: <prober_string>
 ```
 # Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap)
 [ starttls: <string> ]
+```
+
+### <kubernetes_probe>
+
+```
+# The path of a kubeconfig file to configure the probe
+[ kubeconfig: <string> ]
 ```
 
 ## Example Queries

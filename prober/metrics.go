@@ -3,7 +3,6 @@ package prober
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"golang.org/x/crypto/ocsp"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -255,17 +255,9 @@ func collectFileMetrics(files []string, registry *prometheus.Registry) error {
 			log.Debugf("Error reading file: %s error=%s", f, err)
 			continue
 		}
-		var certs []*x509.Certificate
-		for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
-			if block.Type == "CERTIFICATE" {
-				cert, err := x509.ParseCertificate(block.Bytes)
-				if err != nil {
-					return err
-				}
-				if !contains(certs, cert) {
-					certs = append(certs, cert)
-				}
-			}
+		certs, err := decodeCertificates(data)
+		if err != nil {
+			return err
 		}
 		totalCerts = append(totalCerts, certs...)
 		for _, cert := range certs {
@@ -277,6 +269,58 @@ func collectFileMetrics(files []string, registry *prometheus.Registry) error {
 
 			if !cert.NotBefore.IsZero() {
 				fileNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
+			}
+		}
+	}
+
+	if len(totalCerts) == 0 {
+		return fmt.Errorf("No certificates found")
+	}
+
+	return nil
+}
+
+func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Registry) error {
+	var (
+		totalCerts         []*x509.Certificate
+		kubernetesNotAfter = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "kubernetes_cert_not_after"),
+				Help: "NotAfter expressed as a Unix Epoch Time for a certificate found in a kubernetes secret",
+			},
+			[]string{"namespace", "secret", "key", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+		kubernetesNotBefore = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "kubernetes_cert_not_before"),
+				Help: "NotBefore expressed as a Unix Epoch Time for a certificate found in a kubernetes secret",
+			},
+			[]string{"namespace", "secret", "key", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+	)
+	registry.MustRegister(kubernetesNotAfter, kubernetesNotBefore)
+
+	for _, secret := range secrets {
+		for _, key := range []string{"tls.crt", "ca.crt"} {
+			data := secret.Data[key]
+			if len(data) == 0 {
+				continue
+			}
+			certs, err := decodeCertificates(data)
+			if err != nil {
+				return err
+			}
+			totalCerts = append(totalCerts, certs...)
+			for _, cert := range certs {
+				labels := append([]string{secret.Namespace, secret.Name, key}, labelValues(cert)...)
+
+				if !cert.NotAfter.IsZero() {
+					kubernetesNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+				}
+
+				if !cert.NotBefore.IsZero() {
+					kubernetesNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
+				}
 			}
 		}
 	}

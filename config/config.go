@@ -25,6 +25,9 @@ var (
 			"file": Module{
 				Prober: "file",
 			},
+			"kubernetes": Module{
+				Prober: "kubernetes",
+			},
 		},
 	}
 )
@@ -52,11 +55,12 @@ type Config struct {
 }
 
 type Module struct {
-	Prober    string           `yaml:"prober,omitempty"`
-	Timeout   time.Duration    `yaml:"timeout,omitempty"`
-	TLSConfig config.TLSConfig `yaml:"tls_config,omitempty"`
-	HTTPS     HTTPSProbe       `yaml:"https,omitempty"`
-	TCP       TCPProbe         `yaml:"tcp,omitempty"`
+	Prober     string           `yaml:"prober,omitempty"`
+	Timeout    time.Duration    `yaml:"timeout,omitempty"`
+	TLSConfig  config.TLSConfig `yaml:"tls_config,omitempty"`
+	HTTPS      HTTPSProbe       `yaml:"https,omitempty"`
+	TCP        TCPProbe         `yaml:"tcp,omitempty"`
+	Kubernetes KubernetesProbe  `yaml:"kubernetes,omitempty"`
 }
 
 type TCPProbe struct {
@@ -65,6 +69,10 @@ type TCPProbe struct {
 
 type HTTPSProbe struct {
 	ProxyURL URL `yaml:"proxy_url,omitempty"`
+}
+
+type KubernetesProbe struct {
+	Kubeconfig string `yaml:"kubeconfig,omitempty"`
 }
 
 // URL is a custom URL type that allows validation at configuration load time

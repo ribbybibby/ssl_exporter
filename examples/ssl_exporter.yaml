@@ -28,3 +28,9 @@ modules:
     prober: tcp
     tcp:
       starttls: smtp
+  kubernetes:
+    prober: kubernetes
+  kubernetes_kubeconfig:
+    prober: kubernetes
+    kubernetes:
+      kubeconfig: /root/.kube/config
