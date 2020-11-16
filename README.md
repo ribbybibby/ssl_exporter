@@ -179,7 +179,7 @@ One specific usage of this prober could be to run the exporter as a DaemonSet in
 Kubernetes and then scrape each instance to check the expiry of certificates on
 each node:
 
-```
+```yml
 scrape_configs:
   - job_name: "ssl-kubernetes-file"
     metrics_path: /probe
@@ -205,19 +205,19 @@ Provide the namespace and name of the secret in the form `<namespace>/<name>` as
 the target:
 
 ```
-curl "localhost:9219/probe?module=kubernetes&target=kube-system/secret-name
+curl "localhost:9219/probe?module=kubernetes&target=kube-system/secret-name"
 ```
 
 Both the namespace and name portions of the target support glob matching (as provided by the
 [doublestar](https://github.com/bmatcuk/doublestar) package):
 
 ```
-curl "localhost:9219/probe?module=kubernetes&target=kube-system/*
+curl "localhost:9219/probe?module=kubernetes&target=kube-system/*"
 
 ```
 
 ```
-curl "localhost:9219/probe?module=kubernetes&target=*/*
+curl "localhost:9219/probe?module=kubernetes&target=*/*"
 
 ```
 
