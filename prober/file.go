@@ -9,6 +9,7 @@ import (
 	"github.com/ribbybibby/ssl_exporter/config"
 )
 
+// ProbeFile collects certificate metrics from local files
 func ProbeFile(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
 	errCh := make(chan error, 1)
 

@@ -29,6 +29,7 @@ func GenerateTestCertificate(expiry time.Time) ([]byte, []byte) {
 	return pemCert, pemKey
 }
 
+// GenerateSignedCertificate generates a certificate that is signed
 func GenerateSignedCertificate(cert, parentCert *x509.Certificate, parentKey *rsa.PrivateKey) (*x509.Certificate, []byte, []byte) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -49,6 +50,9 @@ func GenerateSignedCertificate(cert, parentCert *x509.Certificate, parentKey *rs
 		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derCert}),
 		pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 }
+
+// GenerateSelfSignedCertificateWithPrivateKey generates a self signed
+// certificate with the given private key
 func GenerateSelfSignedCertificateWithPrivateKey(cert *x509.Certificate, privateKey *rsa.PrivateKey) (*x509.Certificate, []byte) {
 	derCert, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
 	if err != nil {
@@ -63,6 +67,7 @@ func GenerateSelfSignedCertificateWithPrivateKey(cert *x509.Certificate, private
 	return genCert, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derCert})
 }
 
+// GenerateCertificateTemplate generates the template used to issue test certificates
 func GenerateCertificateTemplate(expiry time.Time) *x509.Certificate {
 	return &x509.Certificate{
 		BasicConstraintsValid: true,

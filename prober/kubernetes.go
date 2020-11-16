@@ -18,9 +18,12 @@ import (
 )
 
 var (
+	// ErrKubeBadTarget is returned when the target doesn't match the
+	// expected form for the kubernetes prober
 	ErrKubeBadTarget = fmt.Errorf("Target secret must be provided in the form: <namespace>/<name>")
 )
 
+// ProbeKubernetes collects certificate metrics from kubernetes.io/tls Secrets
 func ProbeKubernetes(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
 	client, err := newKubeClient(module.Kubernetes.Kubeconfig)
 	if err != nil {
