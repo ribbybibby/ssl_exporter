@@ -1,10 +1,14 @@
 package prober
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,11 +20,12 @@ import (
 	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
+	"golang.org/x/crypto/ocsp"
 )
 
 // TestProbeHTTPS tests the typical case
 func TestProbeHTTPS(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -45,6 +50,45 @@ func TestProbeHTTPS(t *testing.T) {
 		t.Fatalf("error: %s", err)
 	}
 
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+}
+
+// TestProbeHTTPSTimeout tests that the https probe respects the timeout in the
+// context
+func TestProbeHTTPSTimeout(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second)
+		fmt.Fprintln(w, "Hello world")
+	})
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile: caFile,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+		t.Fatalf("Expected error but returned error was nil")
+	}
 }
 
 // TestProbeHTTPSInvalidName tests hitting the server on an address which isn't
@@ -84,7 +128,7 @@ func TestProbeHTTPSInvalidName(t *testing.T) {
 // TestProbeHTTPSNoScheme tests that the probe is successful when the scheme is
 // omitted from the target. The scheme should be added by the prober.
 func TestProbeHTTPSNoScheme(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -113,12 +157,19 @@ func TestProbeHTTPSNoScheme(t *testing.T) {
 	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeHTTPSServername tests that the probe is successful when the
 // servername is provided in the TLS config
 func TestProbeHTTPSServerName(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -148,6 +199,13 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	if err := ProbeHTTPS(ctx, "https://localhost:"+u.Port(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeHTTPSHTTP tests that the prober fails when hitting a HTTP server
@@ -218,6 +276,13 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeHTTPSClientAuthWrongClientCert tests that the probe fails with a bad
@@ -315,7 +380,7 @@ func TestProbeHTTPSExpired(t *testing.T) {
 // TestProbeHTTPSExpiredInsecure tests that the probe succeeds with an expired server cert
 // when skipping cert verification
 func TestProbeHTTPSExpiredInsecure(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -347,11 +412,18 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeHTTPSProxy tests the proxy_url field in the configuration
 func TestProbeHTTPSProxy(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupHTTPSServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -404,4 +476,136 @@ func TestProbeHTTPSProxy(t *testing.T) {
 		t.Fatalf("error: %s", err)
 	}
 
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+}
+
+// TestProbeHTTPSOCSP tests a HTTPS probe with OCSP stapling
+func TestProbeHTTPSOCSP(t *testing.T) {
+	server, certPEM, keyPEM, caFile, teardown, err := test.SetupHTTPSServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := newKey(keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := ocsp.CreateResponse(cert, cert, ocsp.Response{SerialNumber: big.NewInt(64), Status: 1}, key)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	server.TLS.Certificates[0].OCSPStaple = resp
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile: caFile,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics(resp, registry, t)
+}
+
+// TestProbeHTTPSVerifiedChains tests the verified chain metrics returned by a
+// https probe
+func TestProbeHTTPSVerifiedChains(t *testing.T) {
+	rootPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rootCertExpiry := time.Now().AddDate(0, 0, 5)
+	rootCertTmpl := test.GenerateCertificateTemplate(rootCertExpiry)
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.SerialNumber = big.NewInt(1)
+	rootCert, rootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(rootCertTmpl, rootPrivateKey)
+
+	olderRootCertExpiry := time.Now().AddDate(0, 0, 3)
+	olderRootCertTmpl := test.GenerateCertificateTemplate(olderRootCertExpiry)
+	olderRootCertTmpl.IsCA = true
+	olderRootCertTmpl.SerialNumber = big.NewInt(2)
+	olderRootCert, olderRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(olderRootCertTmpl, rootPrivateKey)
+
+	oldestRootCertExpiry := time.Now().AddDate(0, 0, 1)
+	oldestRootCertTmpl := test.GenerateCertificateTemplate(oldestRootCertExpiry)
+	oldestRootCertTmpl.IsCA = true
+	oldestRootCertTmpl.SerialNumber = big.NewInt(3)
+	oldestRootCert, oldestRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(oldestRootCertTmpl, rootPrivateKey)
+
+	serverCertExpiry := time.Now().AddDate(0, 0, 4)
+	serverCertTmpl := test.GenerateCertificateTemplate(serverCertExpiry)
+	serverCertTmpl.SerialNumber = big.NewInt(4)
+	serverCert, serverCertPem, serverKey := test.GenerateSignedCertificate(serverCertTmpl, olderRootCert, rootPrivateKey)
+
+	verifiedChains := [][]*x509.Certificate{
+		[]*x509.Certificate{
+			serverCert,
+			rootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			olderRootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			oldestRootCert,
+		},
+	}
+
+	caCertPem := bytes.Join([][]byte{oldestRootCertPem, olderRootCertPem, rootCertPem}, []byte(""))
+
+	server, caFile, teardown, err := test.SetupHTTPSServerWithCertAndKey(
+		caCertPem,
+		serverCertPem,
+		serverKey,
+	)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile: caFile,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(serverCert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkVerifiedChainMetrics(verifiedChains, registry, t)
 }

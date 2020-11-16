@@ -1,14 +1,20 @@
 package prober
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"math/big"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
+	"golang.org/x/crypto/ocsp"
 
 	"github.com/prometheus/client_golang/prometheus"
 	pconfig "github.com/prometheus/common/config"
@@ -16,9 +22,9 @@ import (
 
 // TestProbeTCP tests the typical case
 func TestProbeTCP(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	defer teardown()
 
@@ -40,6 +46,13 @@ func TestProbeTCP(t *testing.T) {
 	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeTCPInvalidName tests hitting the server on an address which isn't
@@ -76,7 +89,7 @@ func TestProbeTCPInvalidName(t *testing.T) {
 // TestProbeTCPServerName tests that the probe is successful when the
 // servername is provided in the TLS config
 func TestProbeTCPServerName(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -103,6 +116,13 @@ func TestProbeTCPServerName(t *testing.T) {
 	if err := ProbeTCP(ctx, "localhost:"+listenPort, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeTCPExpired tests that the probe fails with an expired server cert
@@ -144,7 +164,7 @@ func TestProbeTCPExpired(t *testing.T) {
 // TestProbeTCPExpiredInsecure tests that the probe succeeds with an expired server cert
 // when skipping cert verification
 func TestProbeTCPExpiredInsecure(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -177,11 +197,17 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 		t.Fatalf("error: %s", err)
 	}
 
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
 func TestProbeTCPStartTLSSMTP(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -208,11 +234,18 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeTCPStartTLSFTP tests STARTTLS against a mock FTP server
 func TestProbeTCPStartTLSFTP(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -239,11 +272,18 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
 }
 
 // TestProbeTCPStartTLSIMAP tests STARTTLS against a mock IMAP server
 func TestProbeTCPStartTLSIMAP(t *testing.T) {
-	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -270,4 +310,167 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+}
+
+// TestProbeTCPTimeout tests that the TCP probe respects the timeout in the
+// context
+func TestProbeTCPTimeout(t *testing.T) {
+	server, _, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	server.StartTLSWait(time.Second * 3)
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err == nil {
+		t.Fatalf("Expected error but returned error was nil")
+	}
+}
+
+// TestProbeTCPOCSP tests a TCP probe with OCSP stapling
+func TestProbeTCPOCSP(t *testing.T) {
+	server, certPEM, keyPEM, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := newKey(keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := ocsp.CreateResponse(cert, cert, ocsp.Response{SerialNumber: big.NewInt(64), Status: 1}, key)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	server.TLS.Certificates[0].OCSPStaple = resp
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics(resp, registry, t)
+}
+
+// TestProbeTCPVerifiedChains tests the verified chain metrics returned by a tcp
+// probe
+func TestProbeTCPVerifiedChains(t *testing.T) {
+	rootPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rootCertExpiry := time.Now().AddDate(0, 0, 5)
+	rootCertTmpl := test.GenerateCertificateTemplate(rootCertExpiry)
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.SerialNumber = big.NewInt(1)
+	rootCert, rootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(rootCertTmpl, rootPrivateKey)
+
+	olderRootCertExpiry := time.Now().AddDate(0, 0, 3)
+	olderRootCertTmpl := test.GenerateCertificateTemplate(olderRootCertExpiry)
+	olderRootCertTmpl.IsCA = true
+	olderRootCertTmpl.SerialNumber = big.NewInt(2)
+	olderRootCert, olderRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(olderRootCertTmpl, rootPrivateKey)
+
+	oldestRootCertExpiry := time.Now().AddDate(0, 0, 1)
+	oldestRootCertTmpl := test.GenerateCertificateTemplate(oldestRootCertExpiry)
+	oldestRootCertTmpl.IsCA = true
+	oldestRootCertTmpl.SerialNumber = big.NewInt(3)
+	oldestRootCert, oldestRootCertPem := test.GenerateSelfSignedCertificateWithPrivateKey(oldestRootCertTmpl, rootPrivateKey)
+
+	serverCertExpiry := time.Now().AddDate(0, 0, 4)
+	serverCertTmpl := test.GenerateCertificateTemplate(serverCertExpiry)
+	serverCertTmpl.SerialNumber = big.NewInt(4)
+	serverCert, serverCertPem, serverKey := test.GenerateSignedCertificate(serverCertTmpl, olderRootCert, rootPrivateKey)
+
+	verifiedChains := [][]*x509.Certificate{
+		[]*x509.Certificate{
+			serverCert,
+			rootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			olderRootCert,
+		},
+		[]*x509.Certificate{
+			serverCert,
+			oldestRootCert,
+		},
+	}
+
+	caCertPem := bytes.Join([][]byte{oldestRootCertPem, olderRootCertPem, rootCertPem}, []byte(""))
+
+	server, caFile, teardown, err := test.SetupTCPServerWithCertAndKey(
+		caCertPem,
+		serverCertPem,
+		serverKey,
+	)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: pconfig.TLSConfig{
+			CAFile: caFile,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(serverCert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkVerifiedChainMetrics(verifiedChains, registry, t)
 }

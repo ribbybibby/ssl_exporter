@@ -186,8 +186,5 @@ func checkKubernetesMetrics(cert *x509.Certificate, namespace, name, key string,
 			Value: float64(cert.NotBefore.Unix()),
 		},
 	}
-
-	for _, res := range expectedResults {
-		checkRegistryResults(res, mfs, t)
-	}
+	checkRegistryResults(expectedResults, mfs, t)
 }

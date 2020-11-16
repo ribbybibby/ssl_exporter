@@ -196,7 +196,5 @@ func checkFileMetrics(cert *x509.Certificate, certFile string, registry *prometh
 			Value: float64(cert.NotBefore.Unix()),
 		},
 	}
-	for _, res := range expectedResults {
-		checkRegistryResults(res, mfs, t)
-	}
+	checkRegistryResults(expectedResults, mfs, t)
 }
