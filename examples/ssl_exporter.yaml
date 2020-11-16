@@ -28,6 +28,8 @@ modules:
     prober: tcp
     tcp:
       starttls: smtp
+  file:
+    prober: file
   kubernetes:
     prober: kubernetes
   kubernetes_kubeconfig:
