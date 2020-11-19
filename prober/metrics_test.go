@@ -195,6 +195,23 @@ func checkOCSPMetrics(resp []byte, registry *prometheus.Registry, t *testing.T) 
 	checkRegistryResults(expectedResults, mfs, t)
 }
 
+func checkTLSVersionMetrics(version string, registry *prometheus.Registry, t *testing.T) {
+	mfs, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedResults := []*registryResult{
+		&registryResult{
+			Name: "ssl_tls_version_info",
+			LabelValues: map[string]string{
+				"version": version,
+			},
+			Value: 1,
+		},
+	}
+	checkRegistryResults(expectedResults, mfs, t)
+}
+
 func newCertificate(certPEM []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(certPEM)
 	return x509.ParseCertificate(block.Bytes)

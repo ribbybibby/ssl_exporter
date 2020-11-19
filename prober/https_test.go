@@ -56,6 +56,7 @@ func TestProbeHTTPS(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSTimeout tests that the https probe respects the timeout in the
@@ -164,6 +165,7 @@ func TestProbeHTTPSNoScheme(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSServername tests that the probe is successful when the
@@ -206,6 +208,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSHTTP tests that the prober fails when hitting a HTTP server
@@ -283,6 +286,7 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSClientAuthWrongClientCert tests that the probe fails with a bad
@@ -419,6 +423,7 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSProxy tests the proxy_url field in the configuration
@@ -482,6 +487,7 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSOCSP tests a HTTPS probe with OCSP stapling
@@ -527,6 +533,7 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics(resp, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSVerifiedChains tests the verified chain metrics returned by a
@@ -608,4 +615,5 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 	checkCertificateMetrics(serverCert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
 	checkVerifiedChainMetrics(verifiedChains, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }

@@ -53,6 +53,7 @@ func TestProbeTCP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPInvalidName tests hitting the server on an address which isn't
@@ -123,6 +124,7 @@ func TestProbeTCPServerName(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPExpired tests that the probe fails with an expired server cert
@@ -203,6 +205,7 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
@@ -241,6 +244,7 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPStartTLSFTP tests STARTTLS against a mock FTP server
@@ -279,6 +283,7 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPStartTLSIMAP tests STARTTLS against a mock IMAP server
@@ -317,6 +322,7 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPTimeout tests that the TCP probe respects the timeout in the
@@ -392,6 +398,7 @@ func TestProbeTCPOCSP(t *testing.T) {
 
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics(resp, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeTCPVerifiedChains tests the verified chain metrics returned by a tcp
@@ -473,4 +480,5 @@ func TestProbeTCPVerifiedChains(t *testing.T) {
 	checkCertificateMetrics(serverCert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
 	checkVerifiedChainMetrics(verifiedChains, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
