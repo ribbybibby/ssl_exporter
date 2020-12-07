@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 	"golang.org/x/crypto/ocsp"
@@ -35,7 +34,7 @@ func TestProbeHTTPS(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -46,7 +45,12 @@ func TestProbeHTTPS(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -77,7 +81,7 @@ func TestProbeHTTPSTimeout(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}
@@ -87,7 +91,12 @@ func TestProbeHTTPSTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err == nil {
 		t.Fatalf("Expected error but returned error was nil")
 	}
 }
@@ -105,7 +114,7 @@ func TestProbeHTTPSInvalidName(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -121,51 +130,9 @@ func TestProbeHTTPSInvalidName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, "https://localhost:"+u.Port(), module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, "localhost:"+u.Port(), module, registry); err == nil {
 		t.Fatalf("expected error, but err was nil")
 	}
-}
-
-// TestProbeHTTPSNoScheme tests that the probe is successful when the scheme is
-// omitted from the target. The scheme should be added by the prober.
-func TestProbeHTTPSNoScheme(t *testing.T) {
-	server, certPEM, _, caFile, teardown, err := test.SetupHTTPSServer()
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	defer teardown()
-
-	server.StartTLS()
-	defer server.Close()
-
-	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
-			CAFile:             caFile,
-			InsecureSkipVerify: false,
-		},
-	}
-
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	registry := prometheus.NewRegistry()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
-		t.Fatalf("error: %s", err)
-	}
-
-	cert, err := newCertificate(certPEM)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkCertificateMetrics(cert, registry, t)
-	checkOCSPMetrics([]byte{}, registry, t)
-	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
 // TestProbeHTTPSServername tests that the probe is successful when the
@@ -186,7 +153,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	}
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 			ServerName:         u.Hostname(),
@@ -198,7 +165,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, "https://localhost:"+u.Port(), module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, "localhost:"+u.Port(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -224,7 +191,12 @@ func TestProbeHTTPSHTTP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, config.Module{}, registry); err == nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, config.Module{}, registry); err == nil {
 		t.Fatalf("expected error, but err was nil")
 	}
 }
@@ -263,7 +235,7 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	defer os.Remove(keyFile)
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			CertFile:           certFile,
 			KeyFile:            keyFile,
@@ -276,7 +248,12 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -327,7 +304,7 @@ func TestProbeHTTPSClientAuthWrongClientCert(t *testing.T) {
 	defer os.Remove(keyFile)
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			CertFile:           certFile,
 			KeyFile:            keyFile,
@@ -340,7 +317,12 @@ func TestProbeHTTPSClientAuthWrongClientCert(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -365,7 +347,7 @@ func TestProbeHTTPSExpired(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -376,7 +358,12 @@ func TestProbeHTTPSExpired(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -402,7 +389,7 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: true,
 		},
@@ -413,7 +400,12 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -455,7 +447,7 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	}
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -470,14 +462,19 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err == nil {
 		t.Fatalf("expected error but err was nil")
 	}
 
 	// Test with the proxy url, this shouldn't return an error
 	module.HTTPS.ProxyURL = config.URL{URL: proxyURL}
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -517,7 +514,7 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}
@@ -527,7 +524,12 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -598,7 +600,7 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}
@@ -608,7 +610,12 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

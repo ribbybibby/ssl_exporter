@@ -16,7 +16,7 @@ import (
 
 // ProbeHTTPS performs a https probe
 func ProbeHTTPS(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
-	tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
+	tlsConfig, err := newTLSConfig(target, registry, &module.TLSConfig)
 	if err != nil {
 		return err
 	}

@@ -3,10 +3,10 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
-	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 )
@@ -27,14 +27,19 @@ func TestProbeHandler(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},
 		},
 	}
 
-	rr, err := probe(server.URL, "https", conf)
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	rr, err := probe(u.Host, "https", conf)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

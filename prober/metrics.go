@@ -29,10 +29,6 @@ func collectConnectionStateMetrics(state tls.ConnectionState, registry *promethe
 		return err
 	}
 
-	if err := collectVerifiedChainMetrics(state.VerifiedChains, registry); err != nil {
-		return err
-	}
-
 	return collectOCSPMetrics(state.OCSPResponse, registry)
 }
 

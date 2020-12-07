@@ -28,6 +28,12 @@ modules:
     prober: tcp
     tcp:
       starttls: smtp
+  tcp_smtp_dane:
+    prober: tcp
+    tls_config:
+      dane_verify: true
+    tcp:
+      starttls: smtp
   file:
     prober: file
   kubernetes:

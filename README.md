@@ -263,6 +263,10 @@ prober: <prober_string>
 # Disable target certificate validation.
 [ insecure_skip_verify: <boolean> | default = false ]
 
+# Use DANE to validate target certificates. Ignored if insecure_skip_verify is
+# true
+[ dane_verify: <boolean> | default = false ]
+
 # The CA cert to use for the targets.
 [ ca_file: <filename> ]
 
