@@ -3,6 +3,7 @@ package prober
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -321,6 +322,105 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 				if !cert.NotBefore.IsZero() {
 					kubernetesNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
 				}
+			}
+		}
+	}
+
+	if len(totalCerts) == 0 {
+		return fmt.Errorf("No certificates found")
+	}
+
+	return nil
+}
+
+func collectKubeconfigMetrics(kubeconfig KubeConfig, registry *prometheus.Registry) error {
+	var (
+		totalCerts         []*x509.Certificate
+		kubeconfigNotAfter = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "kubeconfig", "cert_not_after"),
+				Help: "NotAfter expressed as a Unix Epoch Time for a certificate found in a kubeconfig",
+			},
+			[]string{"kubeconfig", "name", "type", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+		kubeconfigNotBefore = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "kubeconfig", "cert_not_before"),
+				Help: "NotBefore expressed as a Unix Epoch Time for a certificate found in a kubeconfig",
+			},
+			[]string{"kubeconfig", "name", "type", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
+	)
+	registry.MustRegister(kubeconfigNotAfter, kubeconfigNotBefore)
+
+	for _, c := range kubeconfig.Clusters {
+		var data []byte
+		var err error
+		if c.Cluster.CertificateAuthorityData != "" {
+			data, err = base64.StdEncoding.DecodeString(c.Cluster.CertificateAuthorityData)
+			if err != nil {
+				return err
+			}
+		} else if c.Cluster.CertificateAuthority != "" {
+			data, err = ioutil.ReadFile(c.Cluster.CertificateAuthority)
+			if err != nil {
+				log.Debugf("Error reading file: %s error=%s", c.Cluster.CertificateAuthority, err)
+				return err
+			}
+		}
+		if data == nil {
+			continue
+		}
+		certs, err := decodeCertificates(data)
+		if err != nil {
+			return err
+		}
+		totalCerts = append(totalCerts, certs...)
+		for _, cert := range certs {
+			labels := append([]string{kubeconfig.Path, c.Name, "cluster"}, labelValues(cert)...)
+
+			if !cert.NotAfter.IsZero() {
+				kubeconfigNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotBefore.IsZero() {
+				kubeconfigNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
+			}
+		}
+	}
+
+	for _, u := range kubeconfig.Users {
+		var data []byte
+		var err error
+		if u.User.ClientCertificateData != "" {
+			data, err = base64.StdEncoding.DecodeString(u.User.ClientCertificateData)
+			if err != nil {
+				return err
+			}
+		} else if u.User.ClientCertificate != "" {
+			data, err = ioutil.ReadFile(u.User.ClientCertificate)
+			if err != nil {
+				log.Debugf("Error reading file: %s error=%s", u.User.ClientCertificate, err)
+				return err
+			}
+		}
+		if data == nil {
+			continue
+		}
+		certs, err := decodeCertificates(data)
+		if err != nil {
+			return err
+		}
+		totalCerts = append(totalCerts, certs...)
+		for _, cert := range certs {
+			labels := append([]string{kubeconfig.Path, u.Name, "user"}, labelValues(cert)...)
+
+			if !cert.NotAfter.IsZero() {
+				kubeconfigNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotBefore.IsZero() {
+				kubeconfigNotBefore.WithLabelValues(labels...).Set(float64(cert.NotBefore.Unix()))
 			}
 		}
 	}

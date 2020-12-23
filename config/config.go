@@ -30,6 +30,9 @@ var (
 			"kubernetes": Module{
 				Prober: "kubernetes",
 			},
+			"kubeconfig": Module{
+				Prober: "kubeconfig",
+			},
 		},
 	}
 )

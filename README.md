@@ -18,6 +18,7 @@ which allows for informational dashboards and flexible alert routing.
     - [HTTPS](#https)
     - [File](#file)
     - [Kubernetes](#kubernetes)
+    - [Kubeconfig](#kubeconfig)
   - [Configuration file](#configuration-file)
     - [&lt;module&gt;](#module)
     - [&lt;tls_config&gt;](#tls_config)
@@ -86,6 +87,8 @@ Flags:
 | ssl_file_cert_not_before       | The date before which a certificate found by the file prober is not valid. Expressed as a Unix Epoch Time.       | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                   | file       |
 | ssl_kubernetes_cert_not_after  | The date after which a certificate found by the kubernetes prober expires. Expressed as a Unix Epoch Time.       | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubernetes |
 | ssl_kubernetes_cert_not_before | The date before which a certificate found by the kubernetes prober is not valid. Expressed as a Unix Epoch Time. | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubernetes |
+| ssl_kubeconfig_cert_not_after  | The date after which a certificate found by the kubeconfig prober expires. Expressed as a Unix Epoch Time.       | kubeconfig, name, type, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubeconfig |
+| ssl_kubeconfig_cert_not_before | The date before which a certificate found by the kubeconfig prober is not valid. Expressed as a Unix Epoch Time. | kubeconfig, name, type, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubeconfig |
 | ssl_ocsp_response_next_update  | The nextUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             | tcp, https |
 | ssl_ocsp_response_produced_at  | The producedAt value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             | tcp, https |
 | ssl_ocsp_response_revoked_at   | The revocationTime value in the OCSP response. Expressed as a Unix Epoch Time                                    |                                                                             | tcp, https |
@@ -229,6 +232,38 @@ sources in the following order:
 - The default configuration file (`$HOME/.kube/config`)
 - The in-cluster environment, if running in a pod
 
+### Kubeconfig
+
+The `kubeconfig` prober exports `ssl_kubeconfig_cert_not_after` and
+`ssl_kubeconfig_cert_not_before` for PEM encoded certificates found in the specified kubeconfig file.
+
+Kubeconfigs local to the exporter can be scraped by providing them as the target
+parameter:
+
+```
+curl "localhost:9219/probe?module=kubeconfig&target=/etc/kubernetes/admin.conf"
+```
+
+One specific usage of this prober could be to run the exporter as a DaemonSet in
+Kubernetes and then scrape each instance to check the expiry of certificates on
+each node:
+
+```yml
+scrape_configs:
+  - job_name: "ssl-kubernetes-kubeconfig"
+    metrics_path: /probe
+    params:
+      module: ["kubeconfig"]
+      target: ["/etc/kubernetes/admin.conf"]
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: ^(.*):(.*)$
+        target_label: __address__
+        replacement: ${1}:9219
+```
+
 ## Configuration file
 
 You can provide further module configuration by providing the path to a
@@ -242,7 +277,7 @@ modules: [<module>]
 ### \<module\>
 
 ```
-# The type of probe (https, tcp, file, kubernetes)
+# The type of probe (https, tcp, file, kubernetes, kubeconfig)
 prober: <prober_string>
 
 # How long the probe will wait before giving up.
