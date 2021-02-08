@@ -9,6 +9,7 @@ builds:
       - windows
     goarch:
       - amd64
+      - mips64le
     flags:
       - -v
     ldflags: |
