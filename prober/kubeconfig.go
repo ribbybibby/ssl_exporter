@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
@@ -47,6 +49,26 @@ func ProbeKubeconfig(ctx context.Context, target string, module config.Module, r
 		return err
 	}
 	k.Path = target
+	for _, c := range k.Clusters {
+		if c.Cluster.CertificateAuthority == "" {
+			continue
+		}
+		// Path is relative to kubeconfig path
+		if !strings.HasPrefix(c.Cluster.CertificateAuthority, "/") {
+			newPath := filepath.Join(filepath.Dir(k.Path), c.Cluster.CertificateAuthority)
+			c.Cluster.CertificateAuthority = newPath
+		}
+	}
+	for _, u := range k.Users {
+		if u.User.ClientCertificate == "" {
+			continue
+		}
+		// Path is relative to kubeconfig path
+		if !strings.HasPrefix(u.User.ClientCertificate, "/") {
+			newPath := filepath.Join(filepath.Dir(k.Path), u.User.ClientCertificate)
+			u.User.ClientCertificate = newPath
+		}
+	}
 	err = collectKubeconfigMetrics(*k, registry)
 	if err != nil {
 		return err
