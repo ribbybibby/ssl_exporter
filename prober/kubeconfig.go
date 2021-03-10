@@ -47,27 +47,6 @@ func ProbeKubeconfig(ctx context.Context, target string, module config.Module, r
 	if err != nil {
 		return err
 	}
-	k.Path = target
-	for _, c := range k.Clusters {
-		if c.Cluster.CertificateAuthority == "" {
-			continue
-		}
-		// Path is relative to kubeconfig path
-		if !filepath.IsAbs(c.Cluster.CertificateAuthority) {
-			newPath := filepath.Join(filepath.Dir(k.Path), c.Cluster.CertificateAuthority)
-			c.Cluster.CertificateAuthority = newPath
-		}
-	}
-	for _, u := range k.Users {
-		if u.User.ClientCertificate == "" {
-			continue
-		}
-		// Path is relative to kubeconfig path
-		if !filepath.IsAbs(u.User.ClientCertificate) {
-			newPath := filepath.Join(filepath.Dir(k.Path), u.User.ClientCertificate)
-			u.User.ClientCertificate = newPath
-		}
-	}
 	err = collectKubeconfigMetrics(*k, registry)
 	if err != nil {
 		return err
@@ -87,6 +66,26 @@ func ParseKubeConfig(file string) (*KubeConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	k.Path = file
+	clusters := []KubeConfigCluster{}
+	users := []KubeConfigUser{}
+	for _, c := range k.Clusters {
+		// Path is relative to kubeconfig path
+		if c.Cluster.CertificateAuthority != "" && !filepath.IsAbs(c.Cluster.CertificateAuthority) {
+			newPath := filepath.Join(filepath.Dir(k.Path), c.Cluster.CertificateAuthority)
+			c.Cluster.CertificateAuthority = newPath
+		}
+		clusters = append(clusters, c)
+	}
+	for _, u := range k.Users {
+		// Path is relative to kubeconfig path
+		if u.User.ClientCertificate != "" && !filepath.IsAbs(u.User.ClientCertificate) {
+			newPath := filepath.Join(filepath.Dir(k.Path), u.User.ClientCertificate)
+			u.User.ClientCertificate = newPath
+		}
+		users = append(users, u)
+	}
+	k.Clusters = clusters
+	k.Users = users
 	return k, nil
 }

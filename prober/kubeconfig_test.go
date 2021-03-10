@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,45 @@ func TestProbeKubeconfig(t *testing.T) {
 	}
 
 	checkKubeconfigMetrics(cert, kubeconfig, registry, t)
+}
+
+func TestParseKubeConfigRelative(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "kubeconfig")
+	if err != nil {
+		t.Fatalf("Unable to create Tempfile: %s", err.Error())
+	}
+	defer os.Remove(tmpFile.Name())
+	file := []byte(`
+clusters:
+  - cluster:
+      certificate-authority: certs/example/ca.pem
+      server: https://master.example.com
+    name: example
+users:
+  - user:
+      client-certificate: test/ca.pem
+    name: example`)
+	if _, err := tmpFile.Write(file); err != nil {
+		t.Fatalf("Unable to write Tempfile: %s", err.Error())
+	}
+	expectedClusterPath := filepath.Join(filepath.Dir(tmpFile.Name()), "certs/example/ca.pem")
+	expectedUserPath := filepath.Join(filepath.Dir(tmpFile.Name()), "test/ca.pem")
+	k, err := ParseKubeConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Error parsing kubeconfig: %s", err.Error())
+	}
+	if len(k.Clusters) != 1 {
+		t.Fatalf("Unexpected length for Clusters, got %d", len(k.Clusters))
+	}
+	if k.Clusters[0].Cluster.CertificateAuthority != expectedClusterPath {
+		t.Errorf("Unexpected CertificateAuthority value\nExpected: %s\nGot: %s", expectedClusterPath, k.Clusters[0].Cluster.CertificateAuthority)
+	}
+	if len(k.Users) != 1 {
+		t.Fatalf("Unexpected length for Users, got %d", len(k.Users))
+	}
+	if k.Users[0].User.ClientCertificate != expectedUserPath {
+		t.Errorf("Unexpected ClientCertificate value\nExpected: %s\nGot: %s", expectedUserPath, k.Users[0].User.ClientCertificate)
+	}
 }
 
 // Create a certificate and write it to a file
