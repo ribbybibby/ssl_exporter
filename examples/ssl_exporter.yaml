@@ -36,3 +36,5 @@ modules:
     prober: kubernetes
     kubernetes:
       kubeconfig: /root/.kube/config
+  kubeconfig:
+    prober: kubeconfig

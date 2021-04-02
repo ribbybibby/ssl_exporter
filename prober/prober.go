@@ -15,6 +15,7 @@ var (
 		"tcp":        ProbeTCP,
 		"file":       ProbeFile,
 		"kubernetes": ProbeKubernetes,
+		"kubeconfig": ProbeKubeconfig,
 	}
 )
 
