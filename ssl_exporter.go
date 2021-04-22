@@ -20,11 +20,17 @@ const (
 	namespace = "ssl"
 )
 
-func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
+func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config, defaultMod string, targetCli string) {
 	moduleName := r.URL.Query().Get("module")
+
+	if moduleName == "" {
+		moduleName := defaultMod
+	}
+
 	if moduleName == "" {
 		moduleName = "tcp"
 	}
+
 	module, ok := conf.Modules[moduleName]
 	if !ok {
 		http.Error(w, fmt.Sprintf("Unknown module %q", moduleName), http.StatusBadRequest)
@@ -57,6 +63,11 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	defer cancel()
 
 	target := r.URL.Query().Get("target")
+
+	if target == "" {
+		target := targetCli
+	}
+
 	if target == "" {
 		http.Error(w, "Target parameter is missing", http.StatusBadRequest)
 		return
@@ -110,6 +121,8 @@ func main() {
 		listenAddress = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9219").String()
 		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
 		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
+		defaultMod    = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("").String()
+		target        = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("").String()
 		configFile    = kingpin.Flag("config.file", "SSL exporter configuration file").Default("").String()
 		err           error
 	)
@@ -132,7 +145,7 @@ func main() {
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf)
+		probeHandler(w, r, conf, defaultMod, target)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>
