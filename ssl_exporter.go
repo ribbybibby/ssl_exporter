@@ -121,8 +121,8 @@ func main() {
 		listenAddress = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9219").String()
 		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
 		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
-		defaultMod    = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("").String()
-		target        = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("").String()
+		defaultMod    = kingpin.Flag("web.default-module", "which module to use file,tcp etc").Default("").String()
+		target        = kingpin.Flag("web.target", "target for example /etc/certs/*.cer").Default("").String()
 		configFile    = kingpin.Flag("config.file", "SSL exporter configuration file").Default("").String()
 		err           error
 	)
