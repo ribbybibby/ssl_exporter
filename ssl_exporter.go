@@ -20,7 +20,7 @@ const (
 	namespace = "ssl"
 )
 
-func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config, defaultMod string, targetCli string) {
+func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config, defaultMod *string, targetCli *string) {
 	moduleName := r.URL.Query().Get("module")
 
 	if moduleName == "" {
