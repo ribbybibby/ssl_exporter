@@ -67,6 +67,10 @@ Flags:
       --web.metrics-path="/metrics"
                                  Path under which to expose metrics
       --web.probe-path="/probe"  Path under which to expose the probe endpoint
+      --web.default-module="tcp"
+                                 module to default to for probe (tcp/file/https
+      --web.target=""
+                                 target to use for probe. example /etc/ssl/**/*.pem. If passed in query param it is given precedence                               
       --config.file=""           SSL exporter configuration file
       --log.level="info"         Only log messages with the given severity or above. Valid
                                  levels: [debug, info, warn, error, fatal]
