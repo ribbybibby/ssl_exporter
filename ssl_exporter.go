@@ -145,7 +145,7 @@ func main() {
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf, defaultMod, target)
+		probeHandler(w, r, conf, *defaultMod, *target)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>
