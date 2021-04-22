@@ -24,7 +24,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config, d
 	moduleName := r.URL.Query().Get("module")
 
 	if moduleName == "" {
-		moduleName = *defaultMod
+		moduleName = defaultMod
 	}
 
 	if moduleName == "" {
@@ -65,7 +65,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config, d
 	target := r.URL.Query().Get("target")
 
 	if target == "" {
-		target = *targetCli
+		target = targetCli
 	}
 
 	if target == "" {
@@ -145,7 +145,7 @@ func main() {
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf, defaultMod, target)
+		probeHandler(w, r, conf, *defaultMod, *target)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>
