@@ -1,35 +1,14 @@
 # SSL Certificate Exporter
 
-Exports metrics for certificates collected from TCP probes, local files or
-Kubernetes secrets. The metrics are labelled with fields from the certificate,
-which allows for informational dashboards and flexible alert routing.
+Exports metrics for certificates collected from various sources:
+- [TCP probes](#tcp)
+- [HTTPS probes](#https)
+- [PEM files](#file)
+- [Kubernetes secrets](#kubernetes)
+- [Kubeconfig files](#kubeconfig)
 
-## Table of Contents
-
-- [SSL Certificate Exporter](#ssl-certificate-exporter)
-  - [Table of Contents](#table-of-contents)
-  - [Building](#building)
-    - [Docker](#docker)
-    - [Release process](#release-process)
-  - [Usage](#usage)
-  - [Metrics](#metrics)
-  - [Configuration](#configuration)
-    - [TCP](#tcp)
-    - [HTTPS](#https)
-    - [File](#file)
-    - [Kubernetes](#kubernetes)
-    - [Kubeconfig](#kubeconfig)
-  - [Configuration file](#configuration-file)
-    - [&lt;module&gt;](#module)
-    - [&lt;tls_config&gt;](#tls_config)
-    - [&lt;https_probe&gt;](#https_probe)
-    - [&lt;tcp_probe&gt;](#tcp_probe)
-    - [&lt;kubernetes_probe&gt;](#kubernetes_probe)
-  - [Example Queries](#example-queries)
-  - [Peer Certificates vs Verified Chain Certificates](#peer-certificates-vs-verified-chain-certificates)
-  - [Grafana](#grafana)
-
-Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
+The metrics are labelled with fields from the certificate, which allows for
+informational dashboards and flexible alert routing.
 
 ## Building
 
