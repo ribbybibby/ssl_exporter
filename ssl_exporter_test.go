@@ -81,7 +81,7 @@ func probe(target, module string, conf *config.Config) (*httptest.ResponseRecord
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf)
+		probeHandler(w, r, conf, "", "")
 	})
 
 	handler.ServeHTTP(rr, req)
