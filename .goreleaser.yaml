@@ -10,6 +10,7 @@ builds:
     goarch:
       - amd64
       - mips64le
+      - loongarch64
     flags:
       - -v
     ldflags: |
