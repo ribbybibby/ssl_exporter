@@ -16,7 +16,7 @@ import (
 	"github.com/ribbybibby/ssl_exporter/test"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // TestProbeFile tests a file
