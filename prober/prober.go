@@ -3,6 +3,7 @@ package prober
 import (
 	"context"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
 )
@@ -20,4 +21,4 @@ var (
 )
 
 // ProbeFn probes
-type ProbeFn func(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error
+type ProbeFn func(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error

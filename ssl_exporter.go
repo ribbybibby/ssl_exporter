@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
+	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/prober"
@@ -20,7 +24,7 @@ const (
 	namespace = "ssl"
 )
 
-func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
+func probeHandler(logger log.Logger, w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	moduleName := r.URL.Query().Get("module")
 	if moduleName == "" {
 		moduleName = "tcp"
@@ -88,9 +92,11 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	registry.MustRegister(probeSuccess, proberType)
 	proberType.WithLabelValues(module.Prober).Set(1)
 
-	err := probeFunc(ctx, target, module, registry)
+	logger = log.With(logger, "target", target, "prober", module.Prober, "timeout", timeout)
+
+	err := probeFunc(ctx, logger, target, module, registry)
 	if err != nil {
-		log.Errorf("error=%s target=%s prober=%s timeout=%s", err, target, module.Prober, timeout)
+		level.Error(logger).Log("msg", err)
 		probeSuccess.Set(0)
 	} else {
 		probeSuccess.Set(1)
@@ -111,28 +117,32 @@ func main() {
 		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
 		probePath     = kingpin.Flag("web.probe-path", "Path under which to expose the probe endpoint").Default("/probe").String()
 		configFile    = kingpin.Flag("config.file", "SSL exporter configuration file").Default("").String()
+		promlogConfig = promlog.Config{}
 		err           error
 	)
 
-	log.AddFlags(kingpin.CommandLine)
+	promlogflag.AddFlags(kingpin.CommandLine, &promlogConfig)
 	kingpin.Version(version.Print(namespace + "_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+
+	logger := promlog.New(&promlogConfig)
 
 	conf := config.DefaultConfig
 	if *configFile != "" {
 		conf, err = config.LoadConfig(*configFile)
 		if err != nil {
-			log.Fatalln(err)
+			level.Error(logger).Log("msg", err)
+			os.Exit(1)
 		}
 	}
 
-	log.Infoln("Starting "+namespace+"_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
+	level.Info(logger).Log("msg", fmt.Sprintf("Starting %s_exporter %s", namespace, version.Info()))
+	level.Info(logger).Log("msg", fmt.Sprintf("Build context %s", version.BuildContext()))
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf)
+		probeHandler(logger, w, r, conf)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>
@@ -145,6 +155,7 @@ func main() {
 						 </html>`))
 	})
 
-	log.Infoln("Listening on", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	level.Info(logger).Log("msg", fmt.Sprintf("Listening on %s", *listenAddress))
+	level.Error(logger).Log("msg", http.ListenAndServe(*listenAddress, nil))
+	os.Exit(1)
 }

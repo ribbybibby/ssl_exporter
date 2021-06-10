@@ -3,9 +3,11 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/go-kit/log"
 	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
@@ -81,10 +83,14 @@ func probe(target, module string, conf *config.Config) (*httptest.ResponseRecord
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, conf)
+		probeHandler(newTestLogger(), w, r, conf)
 	})
 
 	handler.ServeHTTP(rr, req)
 
 	return rr, nil
+}
+
+func newTestLogger() log.Logger {
+	return log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
 }

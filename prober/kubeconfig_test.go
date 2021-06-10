@@ -34,7 +34,7 @@ func TestProbeKubeconfig(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeKubeconfig(ctx, kubeconfig, module, registry); err != nil {
+	if err := ProbeKubeconfig(ctx, newTestLogger(), kubeconfig, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

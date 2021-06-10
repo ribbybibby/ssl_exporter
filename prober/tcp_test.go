@@ -43,7 +43,7 @@ func TestProbeTCP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -82,7 +82,7 @@ func TestProbeTCPInvalidName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, "localhost:"+listenPort, module, registry); err == nil {
+	if err := ProbeTCP(ctx, newTestLogger(), "localhost:"+listenPort, module, registry); err == nil {
 		t.Fatalf("expected error but err was nil")
 	}
 }
@@ -114,7 +114,7 @@ func TestProbeTCPServerName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, "localhost:"+listenPort, module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), "localhost:"+listenPort, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -158,7 +158,7 @@ func TestProbeTCPExpired(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err == nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -195,7 +195,7 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -234,7 +234,7 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -273,7 +273,7 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -312,7 +312,7 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -349,7 +349,7 @@ func TestProbeTCPTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err == nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err == nil {
 		t.Fatalf("Expected error but returned error was nil")
 	}
 }
@@ -392,7 +392,7 @@ func TestProbeTCPOCSP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -473,7 +473,7 @@ func TestProbeTCPVerifiedChains(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeTCP(ctx, server.Listener.Addr().String(), module, registry); err != nil {
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

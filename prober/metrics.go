@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"golang.org/x/crypto/ocsp"
 	v1 "k8s.io/api/core/v1"
 )
@@ -230,7 +231,7 @@ func collectOCSPMetrics(ocspResponse []byte, registry *prometheus.Registry) erro
 	return nil
 }
 
-func collectFileMetrics(files []string, registry *prometheus.Registry) error {
+func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.Registry) error {
 	var (
 		totalCerts   []*x509.Certificate
 		fileNotAfter = prometheus.NewGaugeVec(
@@ -253,7 +254,7 @@ func collectFileMetrics(files []string, registry *prometheus.Registry) error {
 	for _, f := range files {
 		data, err := ioutil.ReadFile(f)
 		if err != nil {
-			log.Debugf("Error reading file: %s error=%s", f, err)
+			level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", f, err))
 			continue
 		}
 		certs, err := decodeCertificates(data)
@@ -333,7 +334,7 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 	return nil
 }
 
-func collectKubeconfigMetrics(kubeconfig KubeConfig, registry *prometheus.Registry) error {
+func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry *prometheus.Registry) error {
 	var (
 		totalCerts         []*x509.Certificate
 		kubeconfigNotAfter = prometheus.NewGaugeVec(
@@ -364,7 +365,7 @@ func collectKubeconfigMetrics(kubeconfig KubeConfig, registry *prometheus.Regist
 		} else if c.Cluster.CertificateAuthority != "" {
 			data, err = ioutil.ReadFile(c.Cluster.CertificateAuthority)
 			if err != nil {
-				log.Debugf("Error reading file: %s error=%s", c.Cluster.CertificateAuthority, err)
+				level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", c.Cluster.CertificateAuthority, err))
 				return err
 			}
 		}
@@ -400,7 +401,7 @@ func collectKubeconfigMetrics(kubeconfig KubeConfig, registry *prometheus.Regist
 		} else if u.User.ClientCertificate != "" {
 			data, err = ioutil.ReadFile(u.User.ClientCertificate)
 			if err != nil {
-				log.Debugf("Error reading file: %s error=%s", u.User.ClientCertificate, err)
+				level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", u.User.ClientCertificate, err))
 				return err
 			}
 		}

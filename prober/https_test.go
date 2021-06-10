@@ -46,7 +46,7 @@ func TestProbeHTTPS(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -87,7 +87,7 @@ func TestProbeHTTPSTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err == nil {
 		t.Fatalf("Expected error but returned error was nil")
 	}
 }
@@ -121,7 +121,7 @@ func TestProbeHTTPSInvalidName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, "https://localhost:"+u.Port(), module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), "https://localhost:"+u.Port(), module, registry); err == nil {
 		t.Fatalf("expected error, but err was nil")
 	}
 }
@@ -155,7 +155,7 @@ func TestProbeHTTPSNoScheme(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, u.Host, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), u.Host, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -198,7 +198,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, "https://localhost:"+u.Port(), module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), "https://localhost:"+u.Port(), module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -224,7 +224,7 @@ func TestProbeHTTPSHTTP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, config.Module{}, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, config.Module{}, registry); err == nil {
 		t.Fatalf("expected error, but err was nil")
 	}
 }
@@ -276,7 +276,7 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -340,7 +340,7 @@ func TestProbeHTTPSClientAuthWrongClientCert(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -376,7 +376,7 @@ func TestProbeHTTPSExpired(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err == nil {
 		t.Fatalf("expected error but err is nil")
 	}
 }
@@ -413,7 +413,7 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -470,14 +470,14 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err == nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err == nil {
 		t.Fatalf("expected error but err was nil")
 	}
 
 	// Test with the proxy url, this shouldn't return an error
 	module.HTTPS.ProxyURL = config.URL{URL: proxyURL}
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -527,7 +527,7 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -608,7 +608,7 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeHTTPS(ctx, server.URL, module, registry); err != nil {
+	if err := ProbeHTTPS(ctx, newTestLogger(), server.URL, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

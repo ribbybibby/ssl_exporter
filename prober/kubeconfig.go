@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"gopkg.in/yaml.v3"
@@ -39,7 +40,7 @@ type KubeConfig struct {
 }
 
 // ProbeKubeconfig collects certificate metrics from kubeconfig files
-func ProbeKubeconfig(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
+func ProbeKubeconfig(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
 	if _, err := os.Stat(target); err != nil {
 		return fmt.Errorf("kubeconfig not found: %s", target)
 	}
@@ -47,7 +48,7 @@ func ProbeKubeconfig(ctx context.Context, target string, module config.Module, r
 	if err != nil {
 		return err
 	}
-	err = collectKubeconfigMetrics(*k, registry)
+	err = collectKubeconfigMetrics(logger, *k, registry)
 	if err != nil {
 		return err
 	}

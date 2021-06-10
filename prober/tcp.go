@@ -8,13 +8,14 @@ import (
 	"net"
 	"regexp"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"github.com/ribbybibby/ssl_exporter/config"
 )
 
 // ProbeTCP performs a tcp probe
-func ProbeTCP(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
+func ProbeTCP(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
 	tlsConfig, err := newTLSConfig(target, registry, &module.TLSConfig)
 	if err != nil {
 		return err
@@ -33,7 +34,7 @@ func ProbeTCP(ctx context.Context, target string, module config.Module, registry
 	}
 
 	if module.TCP.StartTLS != "" {
-		err = startTLS(conn, module.TCP.StartTLS)
+		err = startTLS(logger, conn, module.TCP.StartTLS)
 		if err != nil {
 			return err
 		}
@@ -110,7 +111,7 @@ var (
 )
 
 // startTLS will send the STARTTLS command for the given protocol
-func startTLS(conn net.Conn, proto string) error {
+func startTLS(logger log.Logger, conn net.Conn, proto string) error {
 	var err error
 
 	qr, ok := startTLSqueryResponses[proto]
@@ -123,13 +124,13 @@ func startTLS(conn net.Conn, proto string) error {
 		if qr.expect != "" {
 			var match bool
 			for scanner.Scan() {
-				log.Debugf("read line: %s", scanner.Text())
+				level.Debug(logger).Log("msg", fmt.Sprintf("read line: %s", scanner.Text()))
 				match, err = regexp.Match(qr.expect, scanner.Bytes())
 				if err != nil {
 					return err
 				}
 				if match {
-					log.Debugf("regex: %s matched: %s", qr.expect, scanner.Text())
+					level.Debug(logger).Log("msg", fmt.Sprintf("regex: %s matched: %s", qr.expect, scanner.Text()))
 					break
 				}
 			}
@@ -141,7 +142,7 @@ func startTLS(conn net.Conn, proto string) error {
 			}
 		}
 		if qr.send != "" {
-			log.Debugf("sending line: %s", qr.send)
+			level.Debug(logger).Log("msg", fmt.Sprintf("sending line: %s", qr.send))
 			if _, err := fmt.Fprintf(conn, "%s\r\n", qr.send); err != nil {
 				return err
 			}
