@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v2"
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
 	v1 "k8s.io/api/core/v1"
@@ -24,7 +25,7 @@ var (
 )
 
 // ProbeKubernetes collects certificate metrics from kubernetes.io/tls Secrets
-func ProbeKubernetes(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
+func ProbeKubernetes(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
 	client, err := newKubeClient(module.Kubernetes.Kubeconfig)
 	if err != nil {
 		return err

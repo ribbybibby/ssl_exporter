@@ -32,7 +32,7 @@ func TestProbeFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeFile(ctx, certFile, module, registry); err != nil {
+	if err := ProbeFile(ctx, newTestLogger(), certFile, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -56,7 +56,7 @@ func TestProbeFileGlob(t *testing.T) {
 
 	glob := filepath.Dir(certFile) + "/*.crt"
 
-	if err := ProbeFile(ctx, glob, module, registry); err != nil {
+	if err := ProbeFile(ctx, newTestLogger(), glob, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -84,7 +84,7 @@ func TestProbeFileGlobDoubleStar(t *testing.T) {
 
 	glob := filepath.Dir(filepath.Dir(certFile)) + "/**/*.crt"
 
-	if err := ProbeFile(ctx, glob, module, registry); err != nil {
+	if err := ProbeFile(ctx, newTestLogger(), glob, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
@@ -126,7 +126,7 @@ func TestProbeFileGlobDoubleStarMultiple(t *testing.T) {
 
 	glob := tmpDir + "/**/*.crt"
 
-	if err := ProbeFile(ctx, glob, module, registry); err != nil {
+	if err := ProbeFile(ctx, newTestLogger(), glob, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

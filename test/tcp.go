@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // TCPServer allows manipulation of the tls.Config before starting the listener
@@ -15,6 +16,7 @@ type TCPServer struct {
 	Listener net.Listener
 	TLS      *tls.Config
 	stopCh   chan struct{}
+	logger   log.Logger
 }
 
 // StartTLS starts a listener that performs an immediate TLS handshake
@@ -29,7 +31,7 @@ func (t *TCPServer) StartTLS() {
 
 		// Immediately upgrade to TLS.
 		if err := conn.(*tls.Conn).Handshake(); err != nil {
-			log.Errorln(err)
+			level.Error(t.logger).Log("msg", err)
 		} else {
 			// Send some bytes before terminating the connection.
 			fmt.Fprintf(conn, "Hello World!\n")
@@ -53,7 +55,7 @@ func (t *TCPServer) StartTLSWait(d time.Duration) {
 		time.Sleep(d)
 
 		if err := conn.(*tls.Conn).Handshake(); err != nil {
-			log.Errorln(err)
+			level.Error(t.logger).Log(err)
 		} else {
 			// Send some bytes before terminating the connection.
 			fmt.Fprintf(conn, "Hello World!\n")
@@ -93,7 +95,7 @@ func (t *TCPServer) StartSMTP() {
 		// Upgrade to TLS.
 		tlsConn := tls.Server(conn, t.TLS)
 		if err := tlsConn.Handshake(); err != nil {
-			log.Errorln(err)
+			level.Error(t.logger).Log("msg", err)
 		}
 		defer tlsConn.Close()
 
@@ -120,7 +122,7 @@ func (t *TCPServer) StartFTP() {
 		// Upgrade to TLS.
 		tlsConn := tls.Server(conn, t.TLS)
 		if err := tlsConn.Handshake(); err != nil {
-			log.Errorln(err)
+			level.Error(t.logger).Log(err)
 		}
 		defer tlsConn.Close()
 
@@ -152,7 +154,7 @@ func (t *TCPServer) StartIMAP() {
 		// Upgrade to TLS.
 		tlsConn := tls.Server(conn, t.TLS)
 		if err := tlsConn.Handshake(); err != nil {
-			log.Errorln(err)
+			level.Error(t.logger).Log("msg", err)
 		}
 		defer tlsConn.Close()
 
@@ -213,6 +215,7 @@ func SetupTCPServerWithCertAndKey(caPEM, certPEM, keyPEM []byte) (*TCPServer, st
 		Listener: ln,
 		TLS:      tlsConfig,
 		stopCh:   make(chan (struct{})),
+		logger:   log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
 	}
 
 	return server, caFile, teardown, err

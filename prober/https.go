@@ -9,13 +9,14 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"github.com/ribbybibby/ssl_exporter/config"
 )
 
 // ProbeHTTPS performs a https probe
-func ProbeHTTPS(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
+func ProbeHTTPS(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
 	tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
 	if err != nil {
 		return err
@@ -63,7 +64,7 @@ func ProbeHTTPS(ctx context.Context, target string, module config.Module, regist
 	defer func() {
 		_, err := io.Copy(ioutil.Discard, resp.Body)
 		if err != nil {
-			log.Errorln(err)
+			level.Error(logger).Log("msg", err)
 		}
 		resp.Body.Close()
 	}()

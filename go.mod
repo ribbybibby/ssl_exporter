@@ -2,10 +2,10 @@ module github.com/ribbybibby/ssl_exporter
 
 require (
 	github.com/bmatcuk/doublestar/v2 v2.0.3
+	github.com/go-kit/log v0.1.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.14.0
-	github.com/sirupsen/logrus v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20201016165138-7b1cca2348c0 // indirect
 	golang.org/x/sys v0.0.0-20201018121011-98379d014ca7 // indirect

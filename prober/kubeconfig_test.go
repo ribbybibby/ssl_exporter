@@ -16,7 +16,7 @@ import (
 	"github.com/ribbybibby/ssl_exporter/test"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // TestProbeFile tests a file
@@ -34,7 +34,7 @@ func TestProbeKubeconfig(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeKubeconfig(ctx, kubeconfig, module, registry); err != nil {
+	if err := ProbeKubeconfig(ctx, newTestLogger(), kubeconfig, module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 

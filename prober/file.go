@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/bmatcuk/doublestar/v2"
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
 )
 
 // ProbeFile collects certificate metrics from local files
-func ProbeFile(ctx context.Context, target string, module config.Module, registry *prometheus.Registry) error {
+func ProbeFile(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -23,7 +24,7 @@ func ProbeFile(ctx context.Context, target string, module config.Module, registr
 		if len(files) == 0 {
 			errCh <- fmt.Errorf("No files found")
 		} else {
-			errCh <- collectFileMetrics(files, registry)
+			errCh <- collectFileMetrics(logger, files, registry)
 		}
 	}()
 
