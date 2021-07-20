@@ -19,7 +19,7 @@ all: clean format vet build test
 
 style:
 	@echo ">> checking code style"
-	@! gofmt -s -d $(shell find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
+	@! gofmt -s -d . | grep '^'
 
 test:
 	@echo ">> running tests"
