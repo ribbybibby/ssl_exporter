@@ -300,7 +300,7 @@ prober: <prober_string>
 ### <tcp_probe>
 
 ```
-# Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap)
+# Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap, postgres)
 [ starttls: <string> ]
 ```
 

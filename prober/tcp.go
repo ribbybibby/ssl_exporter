@@ -2,9 +2,11 @@ package prober
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 
@@ -47,8 +49,10 @@ func ProbeTCP(ctx context.Context, logger log.Logger, target string, module conf
 }
 
 type queryResponse struct {
-	expect string
-	send   string
+	expect      string
+	send        string
+	sendBytes   []byte
+	expectBytes []byte
 }
 
 var (
@@ -107,6 +111,14 @@ var (
 				expect: "OK",
 			},
 		},
+		"postgres": []queryResponse{
+			queryResponse{
+				sendBytes: []byte{0x00, 0x00, 0x00, 0x08, 0x04, 0xd2, 0x16, 0x2f},
+			},
+			queryResponse{
+				expectBytes: []byte{0x53},
+			},
+		},
 	}
 )
 
@@ -141,9 +153,28 @@ func startTLS(logger log.Logger, conn net.Conn, proto string) error {
 				return fmt.Errorf("regex: %s didn't match: %s", qr.expect, scanner.Text())
 			}
 		}
+		if len(qr.expectBytes) > 0 {
+			buffer := make([]byte, len(qr.expectBytes))
+			_, err = io.ReadFull(conn, buffer)
+			if err != nil {
+				return nil
+			}
+			level.Debug(logger).Log("msg", fmt.Sprintf("read bytes: %x", buffer))
+			if bytes.Compare(buffer, qr.expectBytes) != 0 {
+				return fmt.Errorf("read bytes %x didn't match with expected bytes %x", buffer, qr.expectBytes)
+			} else {
+				level.Debug(logger).Log("msg", fmt.Sprintf("expected bytes %x matched with read bytes %x", qr.expectBytes, buffer))
+			}
+		}
 		if qr.send != "" {
 			level.Debug(logger).Log("msg", fmt.Sprintf("sending line: %s", qr.send))
 			if _, err := fmt.Fprintf(conn, "%s\r\n", qr.send); err != nil {
+				return err
+			}
+		}
+		if len(qr.sendBytes) > 0 {
+			level.Debug(logger).Log("msg", fmt.Sprintf("sending bytes: %x", qr.sendBytes))
+			if _, err = conn.Write(qr.sendBytes); err != nil {
 				return err
 			}
 		}

@@ -1,8 +1,10 @@
 package test
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -152,6 +154,45 @@ func (t *TCPServer) StartIMAP() {
 		fmt.Fprintf(conn, ". OK Begin TLS negotiation now.\n")
 
 		// Upgrade to TLS.
+		tlsConn := tls.Server(conn, t.TLS)
+		if err := tlsConn.Handshake(); err != nil {
+			level.Error(t.logger).Log("msg", err)
+		}
+		defer tlsConn.Close()
+
+		t.stopCh <- struct{}{}
+	}()
+}
+
+// StartPostgreSQL starts a listener that negotiates a TLS connection with an postgresql
+// client using STARTTLS
+func (t *TCPServer) StartPostgreSQL() {
+	go func() {
+		conn, err := t.Listener.Accept()
+		if err != nil {
+			panic(fmt.Sprintf("Error accepting on socket: %s", err))
+		}
+		defer conn.Close()
+
+		sslRequestMessage := []byte{0x00, 0x00, 0x00, 0x08, 0x04, 0xd2, 0x16, 0x2f}
+
+		buffer := make([]byte, len(sslRequestMessage))
+
+		_, err = io.ReadFull(conn, buffer)
+		if err != nil {
+			panic("Error reading input from client")
+		}
+
+		if bytes.Compare(buffer, sslRequestMessage) != 0 {
+			panic(fmt.Sprintf("Error in dialog. No %x received", buffer))
+		}
+
+		sslRequestResponse := []byte{0x53}
+
+		if _, err := conn.Write(sslRequestResponse); err != nil {
+			panic("Error writing response to client")
+		}
+
 		tlsConn := tls.Server(conn, t.TLS)
 		if err := tlsConn.Handshake(); err != nil {
 			level.Error(t.logger).Log("msg", err)
