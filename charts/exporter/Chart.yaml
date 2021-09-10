@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ssl_exporter
+description: A Helm chart for SSL Exporter
+type: application
+version: 0.1.0
+appVersion: 2.3.1

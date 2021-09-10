@@ -1,0 +1,41 @@
+annotations: {}
+replicaCount: 1
+imagePullPolicy: Always
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+securityContext: {}
+  # fsGroup: 1001
+  # runAsGroup: 1001
+  # runAsNonRoot: true
+  # runAsUser: 1001
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 200m
+  #   memory: 128Mi
+terminationGracePeriodSeconds: 5
+probes:
+  readiness:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  liveness:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+service:
+  enabled: true
+  annotations: {}
+  port: 80
+  sessionAffinity: None
+
+prometheusOperator:
+  enableExampleProbes: false
