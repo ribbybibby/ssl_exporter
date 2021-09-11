@@ -28,10 +28,10 @@ metric indicates if the probe has been successful.
 ### Release process
 
 - Update the `VERSION` file in this repository and commit to master
-- [This github action](.github/workflows/release.yaml) will add a changelog and
-  upload binaries in response to a release being created in Github
-- Dockerhub will build and tag a new container image in response to tags of the
-  format `/^v[0-9.]+$/`
+- Create a release in Github prefixed with `v` and GH actions will:
+  - Add a changelog
+  - Upload binaries
+  - Build and push a Docker image
 
 ## Usage
 
