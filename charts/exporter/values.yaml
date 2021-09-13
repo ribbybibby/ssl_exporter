@@ -1,6 +1,6 @@
 annotations: {}
 replicaCount: 1
-imagePullPolicy: Always
+imagePullPolicy: IfNotPresent
 imagePullSecrets: []
 nodeSelector: {}
 tolerations: []
