@@ -1,0 +1,12 @@
+{{- if $.Values.configMap.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ .Release.Namespace | quote }}
+  name: {{ include "releasename" $ | quote }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+data:
+  config.yaml: |
+{{ $.Values.configMap.data | indent 4 }}
+{{- end }}
