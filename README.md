@@ -32,6 +32,7 @@ metric indicates if the probe has been successful.
   upload binaries in response to a release being created in Github
 - Dockerhub will build and tag a new container image in response to tags of the
   format `/^v[0-9.]+$/`
+- Helm chart needs to update app version manually in `Chart.yaml`
 
 ## Usage
 
