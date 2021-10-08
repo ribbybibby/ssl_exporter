@@ -35,6 +35,12 @@ func probeHandler(logger log.Logger, w http.ResponseWriter, r *http.Request, con
 		return
 	}
 
+	if serverName := r.URL.Query().Get("server_name"); serverName != "" {
+		level.Debug(logger).Log("msg", fmt.Sprintf("Using %s as server name", serverName))
+		logger = log.With(logger, "server_name", serverName)
+		module.TLSConfig.ServerName = serverName
+	}
+
 	timeout := module.Timeout
 	if timeout == 0 {
 		// The following timeout block was taken wholly from the blackbox exporter
