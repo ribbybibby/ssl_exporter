@@ -1,14 +1,17 @@
 package prober
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -22,7 +25,9 @@ const (
 	namespace = "ssl"
 )
 
-func collectConnectionStateMetrics(state tls.ConnectionState, registry *prometheus.Registry) error {
+var ocspResponseCache sync.Map
+
+func collectConnectionStateMetrics(logger log.Logger, state tls.ConnectionState, registry *prometheus.Registry) error {
 	if err := collectTLSVersionMetrics(state.Version, registry); err != nil {
 		return err
 	}
@@ -35,7 +40,11 @@ func collectConnectionStateMetrics(state tls.ConnectionState, registry *promethe
 		return err
 	}
 
-	return collectOCSPMetrics(state.OCSPResponse, registry)
+	if err := collectOCSPMetrics(state.OCSPResponse, registry); err != nil {
+		return err
+	}
+
+	return collectRevocationMetrics(logger, state.VerifiedChains, registry)
 }
 
 func collectTLSVersionMetrics(version uint16, registry *prometheus.Registry) error {
@@ -227,6 +236,52 @@ func collectOCSPMetrics(ocspResponse []byte, registry *prometheus.Registry) erro
 	ocspThisUpdate.Set(float64(resp.ThisUpdate.Unix()))
 	ocspNextUpdate.Set(float64(resp.NextUpdate.Unix()))
 	ocspRevokedAt.Set(float64(resp.RevokedAt.Unix()))
+
+	return nil
+}
+
+func collectRevocationMetrics(logger log.Logger, verifiedChains [][]*x509.Certificate, registry *prometheus.Registry) error {
+	revocationStatus := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: prometheus.BuildFQName(namespace, "", "revocation_status"),
+			Help: "OCSP or CRL revocation status for the certificate (0=Good 1=Revoked 2=Unknown)",
+		},
+		[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+	)
+
+	registry.MustRegister(revocationStatus)
+
+	for i, chain := range verifiedChains {
+		level.Debug(logger).Log("msg", fmt.Sprintf("Checking chain #%d", i))
+
+		for j, cert := range chain {
+			level.Debug(logger).Log("msg", fmt.Sprintf("Checking certitifcate %s", cert.Subject))
+
+			if j+1 >= len(chain) {
+				level.Debug(logger).Log("msg", fmt.Sprintf("Skiping cert %s: has no issuers (must be the root CA)", cert.Subject))
+				continue
+			}
+
+			issuer := chain[j+1]
+
+			status := 2
+
+			if len(cert.OCSPServer) >= 1 {
+				level.Debug(logger).Log("msg", "Checking OCSP status")
+				status = checkOCSPStatus(logger, cert, issuer)
+			}
+
+			if status == 2 {
+				level.Debug(logger).Log("msg", "Falling back to CRL checking")
+				status = checkCRLStatus(logger, cert, issuer)
+			}
+
+			chainNo := strconv.Itoa(i)
+			labels := append([]string{chainNo}, labelValues(cert)...)
+
+			revocationStatus.WithLabelValues(labels...).Set(float64(status))
+		}
+	}
 
 	return nil
 }
@@ -479,4 +534,110 @@ func organizationalUnits(cert *x509.Certificate) string {
 	}
 
 	return ""
+}
+
+func checkOCSPStatus(logger log.Logger, cert *x509.Certificate, issuer *x509.Certificate) int {
+	if resp, exists := ocspResponseCache.Load(cert.SerialNumber.String()); exists {
+		resp := resp.(*ocsp.Response)
+
+		if time.Now().Sub(resp.ProducedAt).Hours() > 6 {
+			level.Debug(logger).Log("msg", "Using OCSP Response from cache")
+			return resp.Status
+		}
+	}
+
+	level.Debug(logger).Log("msg", fmt.Sprintf("Building an OCSP request for %s with issuer %s", cert.Subject, issuer.Subject))
+
+	req, err := ocsp.CreateRequest(cert, issuer, &ocsp.RequestOptions{})
+	if err != nil {
+		level.Warn(logger).Log("msg", fmt.Sprintf("Unable to create OCSP request for %s: %s", cert.Subject, err))
+		return 2
+	}
+
+	for _, server := range cert.OCSPServer {
+		level.Debug(logger).Log("msg", fmt.Sprintf("Requesting OCSP status for %s on %s", cert.Subject, server))
+		resp, err := OCSPRequest(server, req, issuer)
+		if err != nil {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to check OCSP status for %s: %s", cert.Subject, err))
+			continue
+		}
+
+		ocspResponseCache.Store(cert.SerialNumber.String(), resp)
+
+		return resp.Status
+	}
+
+	return 2
+}
+
+func checkCRLStatus(logger log.Logger, cert *x509.Certificate, issuer *x509.Certificate) int {
+	for _, url := range cert.CRLDistributionPoints {
+		resp, err := http.Get(url)
+		if err != nil {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to download CRL for %s: %s", cert.Subject, err))
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to downlaod CRL for %s: got HTTP status code %d", cert.Subject, resp.StatusCode))
+			continue
+		}
+
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to read CRL from HTTP response for %s: %s", cert.Subject, err))
+			continue
+		}
+
+		crl, err := x509.ParseCRL(data)
+		if err != nil {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to parse CRL for %s: %s", cert.Subject, err))
+			continue
+		}
+
+		if err := issuer.CheckCRLSignature(crl); err != nil {
+			level.Warn(logger).Log("msg", fmt.Sprintf("Unable to check CRL signature for %s: %s", cert.Subject, err))
+			continue
+		}
+
+		for _, revokedCert := range crl.TBSCertList.RevokedCertificates {
+			if cert.SerialNumber == revokedCert.SerialNumber {
+				return 1
+			}
+		}
+
+		return 0
+	}
+
+	return 2
+}
+
+func OCSPRequest(server string, req []byte, issuer *x509.Certificate) (*ocsp.Response, error) {
+	var err error
+	var resp *http.Response
+
+	buf := bytes.NewBuffer(req)
+	resp, err = http.Post(server, "application/ocsp-request", buf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http error")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("no data")
+	}
+	resp.Body.Close()
+
+	ocspResponse, err := ocsp.ParseResponse(body, issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	return ocspResponse, nil
 }

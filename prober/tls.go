@@ -6,13 +6,14 @@ import (
 	"encoding/pem"
 	"net"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	pconfig "github.com/prometheus/common/config"
 )
 
 // newTLSConfig sets up TLS config and instruments it with a function that
 // collects metrics for the verified chain
-func newTLSConfig(target string, registry *prometheus.Registry, pTLSConfig *pconfig.TLSConfig) (*tls.Config, error) {
+func newTLSConfig(logger log.Logger, target string, registry *prometheus.Registry, pTLSConfig *pconfig.TLSConfig) (*tls.Config, error) {
 	tlsConfig, err := pconfig.NewTLSConfig(pTLSConfig)
 	if err != nil {
 		return nil, err
@@ -27,7 +28,7 @@ func newTLSConfig(target string, registry *prometheus.Registry, pTLSConfig *pcon
 	}
 
 	tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
-		return collectConnectionStateMetrics(state, registry)
+		return collectConnectionStateMetrics(logger, state, registry)
 	}
 
 	return tlsConfig, nil
