@@ -1,12 +1,12 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"os"
 	"time"
 
-	"github.com/prometheus/common/config"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -63,12 +63,39 @@ type Config struct {
 
 // Module configures a prober
 type Module struct {
-	Prober     string           `yaml:"prober,omitempty"`
-	Timeout    time.Duration    `yaml:"timeout,omitempty"`
-	TLSConfig  config.TLSConfig `yaml:"tls_config,omitempty"`
-	HTTPS      HTTPSProbe       `yaml:"https,omitempty"`
-	TCP        TCPProbe         `yaml:"tcp,omitempty"`
-	Kubernetes KubernetesProbe  `yaml:"kubernetes,omitempty"`
+	Prober     string          `yaml:"prober,omitempty"`
+	Timeout    time.Duration   `yaml:"timeout,omitempty"`
+	TLSConfig  TLSConfig       `yaml:"tls_config,omitempty"`
+	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
+	TCP        TCPProbe        `yaml:"tcp,omitempty"`
+	Kubernetes KubernetesProbe `yaml:"kubernetes,omitempty"`
+}
+
+// TLSConfig is a superset of config.TLSConfig that supports TLS renegotiation
+type TLSConfig struct {
+	CAFile             string `yaml:"ca_file,omitempty"`
+	CertFile           string `yaml:"cert_file,omitempty"`
+	KeyFile            string `yaml:"key_file,omitempty"`
+	ServerName         string `yaml:"server_name,omitempty"`
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
+	// Configure what kind of TLS renegotiation are supported. Value supported:
+	// never (default), once, freely.
+	Renegotiation renegotiation `yaml:"renegotiation,omitempty"`
+}
+
+type renegotiation string
+
+func (r *renegotiation) ToRenegotiationSupport() (tls.RenegotiationSupport, error) {
+	switch *r {
+	case "", "never":
+		return tls.RenegotiateNever, nil
+	case "once":
+		return tls.RenegotiateOnceAsClient, nil
+	case "freely":
+		return tls.RenegotiateFreelyAsClient, nil
+	default:
+		return tls.RenegotiateNever, fmt.Errorf("unsupported tls renegotiation support %s", *r)
+	}
 }
 
 // TCPProbe configures a tcp probe

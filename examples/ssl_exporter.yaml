@@ -5,6 +5,7 @@ modules:
     prober: https
     tls_config:
       insecure_skip_verify: true
+      renegotiation: freely
   https_proxy:
     prober: https
     https:
