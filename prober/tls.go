@@ -6,30 +6,17 @@ import (
 	"encoding/pem"
 	"net"
 
-	"github.com/jinzhu/copier"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/config"
-
-	pconfig "github.com/prometheus/common/config"
 )
 
 // newTLSConfig sets up TLS config and instruments it with a function that
 // collects metrics for the verified chain
-func newTLSConfig(target string, registry *prometheus.Registry, eTLSConfig *config.TLSConfig) (*tls.Config, error) {
-	pTLSConfig := &pconfig.TLSConfig{}
-
-	copier.Copy(&pTLSConfig, eTLSConfig)
-
-	tlsConfig, err := pconfig.NewTLSConfig(pTLSConfig)
+func newTLSConfig(target string, registry *prometheus.Registry, cfg *config.TLSConfig) (*tls.Config, error) {
+	tlsConfig, err := config.NewTLSConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	renegotiation, err := eTLSConfig.Renegotiation.ToRenegotiationSupport()
-	if err != nil {
-		return nil, err
-	}
-	tlsConfig.Renegotiation = renegotiation
 
 	if tlsConfig.ServerName == "" && target != "" {
 		targetAddress, _, err := net.SplitHostPort(target)

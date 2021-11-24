@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	pconfig "github.com/prometheus/common/config"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -78,7 +79,7 @@ type TLSConfig struct {
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
-	// Renegotiation controls what types of TLS renegotiation are supported. 
+	// Renegotiation controls what types of TLS renegotiation are supported.
 	// Supported values: never (default), once, freely.
 	Renegotiation renegotiation `yaml:"renegotiation,omitempty"`
 }
@@ -96,6 +97,29 @@ func (r *renegotiation) ToRenegotiationSupport() (tls.RenegotiationSupport, erro
 	default:
 		return tls.RenegotiateNever, fmt.Errorf("unsupported tls renegotiation support %s", *r)
 	}
+}
+
+// NewTLSConfig creates a new tls.Config from the given TLSConfig,
+// plus our local extensions
+func NewTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
+	tlsConfig, err := pconfig.NewTLSConfig(&pconfig.TLSConfig{
+		CAFile:             cfg.CAFile,
+		CertFile:           cfg.CertFile,
+		KeyFile:            cfg.KeyFile,
+		ServerName:         cfg.ServerName,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	renegotiation, err := cfg.Renegotiation.ToRenegotiationSupport()
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.Renegotiation = renegotiation
+
+	return tlsConfig, nil
 }
 
 // TCPProbe configures a tcp probe
