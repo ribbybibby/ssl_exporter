@@ -78,8 +78,8 @@ type TLSConfig struct {
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
-	// Configure what kind of TLS renegotiation are supported. Value supported:
-	// never (default), once, freely.
+	// Renegotiation controls what types of TLS renegotiation are supported. 
+	// Supported values: never (default), once, freely.
 	Renegotiation renegotiation `yaml:"renegotiation,omitempty"`
 }
 
