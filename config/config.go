@@ -84,19 +84,25 @@ type TLSConfig struct {
 	Renegotiation renegotiation `yaml:"renegotiation,omitempty"`
 }
 
-type renegotiation string
+type renegotiation tls.RenegotiationSupport
 
-func (r *renegotiation) ToRenegotiationSupport() (tls.RenegotiationSupport, error) {
-	switch *r {
-	case "", "never":
-		return tls.RenegotiateNever, nil
-	case "once":
-		return tls.RenegotiateOnceAsClient, nil
-	case "freely":
-		return tls.RenegotiateFreelyAsClient, nil
-	default:
-		return tls.RenegotiateNever, fmt.Errorf("unsupported tls renegotiation support %s", *r)
+func (r *renegotiation) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var v string
+	if err := unmarshal(&v); err != nil {
+		return err
 	}
+	switch v {
+	case "", "never":
+		*r = renegotiation(tls.RenegotiateNever)
+	case "once":
+		*r = renegotiation(tls.RenegotiateOnceAsClient)
+	case "freely":
+		*r = renegotiation(tls.RenegotiateFreelyAsClient)
+	default:
+		return fmt.Errorf("unsupported TLS renegotiation type %s", v)
+	}
+
+	return nil
 }
 
 // NewTLSConfig creates a new tls.Config from the given TLSConfig,
@@ -113,11 +119,7 @@ func NewTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
 		return nil, err
 	}
 
-	renegotiation, err := cfg.Renegotiation.ToRenegotiationSupport()
-	if err != nil {
-		return nil, err
-	}
-	tlsConfig.Renegotiation = renegotiation
+	tlsConfig.Renegotiation = tls.RenegotiationSupport(cfg.Renegotiation)
 
 	return tlsConfig, nil
 }
