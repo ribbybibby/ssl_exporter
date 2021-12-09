@@ -119,6 +119,17 @@ var (
 				expectBytes: []byte{0x53},
 			},
 		},
+		"pop3": []queryResponse{
+			queryResponse{
+				expect: "OK",
+			},
+			queryResponse{
+				send: "STLS",
+			},
+			queryResponse{
+				expect: "OK",
+			},
+		},
 	}
 )
 
