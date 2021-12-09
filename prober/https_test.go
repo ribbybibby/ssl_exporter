@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 	"golang.org/x/crypto/ocsp"
@@ -35,7 +34,7 @@ func TestProbeHTTPS(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -77,7 +76,7 @@ func TestProbeHTTPSTimeout(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}
@@ -105,7 +104,7 @@ func TestProbeHTTPSInvalidName(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -139,7 +138,7 @@ func TestProbeHTTPSNoScheme(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -186,7 +185,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	}
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 			ServerName:         u.Hostname(),
@@ -263,7 +262,7 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	defer os.Remove(keyFile)
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			CertFile:           certFile,
 			KeyFile:            keyFile,
@@ -327,7 +326,7 @@ func TestProbeHTTPSClientAuthWrongClientCert(t *testing.T) {
 	defer os.Remove(keyFile)
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			CertFile:           certFile,
 			KeyFile:            keyFile,
@@ -365,7 +364,7 @@ func TestProbeHTTPSExpired(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -402,7 +401,7 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: true,
 		},
@@ -455,7 +454,7 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	}
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -517,7 +516,7 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}
@@ -598,7 +597,7 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}

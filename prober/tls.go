@@ -7,13 +7,13 @@ import (
 	"net"
 
 	"github.com/prometheus/client_golang/prometheus"
-	pconfig "github.com/prometheus/common/config"
+	"github.com/ribbybibby/ssl_exporter/config"
 )
 
 // newTLSConfig sets up TLS config and instruments it with a function that
 // collects metrics for the verified chain
-func newTLSConfig(target string, registry *prometheus.Registry, pTLSConfig *pconfig.TLSConfig) (*tls.Config, error) {
-	tlsConfig, err := pconfig.NewTLSConfig(pTLSConfig)
+func newTLSConfig(target string, registry *prometheus.Registry, cfg *config.TLSConfig) (*tls.Config, error) {
+	tlsConfig, err := config.NewTLSConfig(cfg)
 	if err != nil {
 		return nil, err
 	}

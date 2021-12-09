@@ -277,6 +277,10 @@ prober: <prober_string>
 # Disable target certificate validation.
 [ insecure_skip_verify: <boolean> | default = false ]
 
+# Configure TLS renegotiation support.
+# Valid options: never, once, freely
+[ renegotiation: <string> | default = never ]
+
 # The CA cert to use for the targets.
 [ ca_file: <filename> ]
 
