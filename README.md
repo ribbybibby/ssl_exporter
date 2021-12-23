@@ -22,17 +22,15 @@ metric indicates if the probe has been successful.
 
 ### Docker
 
-    docker pull ribbybibby/ssl-exporter
     docker run -p 9219:9219 ribbybibby/ssl-exporter:latest <flags>
 
 ### Release process
 
-- Update the `VERSION` file in this repository and commit to master
-- [This github action](.github/workflows/release.yaml) will add a changelog and
-  upload binaries in response to a release being created in Github
-- Dockerhub will build and tag a new container image in response to tags of the
-  format `/^v[0-9.]+$/`
-- Helm chart needs to update app version manually in `Chart.yaml`
+- Update the Helm chart version in [`charts/exporter/Chart.yaml`](charts/exporter/Chart.yaml)
+- Create a release in Github with a semver tag and GH actions will:
+  - Add a changelog
+  - Upload binaries
+  - Build and push a Docker image
 
 ## Usage
 
@@ -278,6 +276,10 @@ prober: <prober_string>
 # Disable target certificate validation.
 [ insecure_skip_verify: <boolean> | default = false ]
 
+# Configure TLS renegotiation support.
+# Valid options: never, once, freely
+[ renegotiation: <string> | default = never ]
+
 # The CA cert to use for the targets.
 [ ca_file: <filename> ]
 
@@ -381,5 +383,5 @@ trust.
 
 ## Grafana
 
-You can find a simple dashboard [here](grafana/dashboard.json) that tracks
+You can find a simple dashboard [here](contrib/grafana/dashboard.json) that tracks
 certificate expiration dates and target connection errors.

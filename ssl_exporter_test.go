@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
-	pconfig "github.com/prometheus/common/config"
 	"github.com/ribbybibby/ssl_exporter/config"
 	"github.com/ribbybibby/ssl_exporter/test"
 )
@@ -29,7 +28,7 @@ func TestProbeHandler(t *testing.T) {
 		Modules: map[string]config.Module{
 			"https": config.Module{
 				Prober: "https",
-				TLSConfig: pconfig.TLSConfig{
+				TLSConfig: config.TLSConfig{
 					CAFile: caFile,
 				},
 			},

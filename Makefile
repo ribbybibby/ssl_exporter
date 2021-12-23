@@ -8,12 +8,10 @@ DOCKER_IMAGE_TAG    ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 # Race detector is only supported on amd64.
 RACE := $(shell test $$(go env GOARCH) != "amd64" || (echo "-race"))
 
-export APP_HOST        ?= $(shell hostname)
-export APP_BRANCH      ?= $(shell git describe --all --contains --dirty HEAD)
-export APP_VERSION     := $(shell cat VERSION)
-export APP_REVISION    := $(shell git rev-parse HEAD)
-export APP_USER        := $(shell id -u --name)
-export APP_BUILD_DATE  := $(shell date '+%Y%m%d-%H:%M:%S')
+export APP_HOST              ?= $(shell hostname)
+export APP_BRANCH            ?= $(shell git describe --all --contains --dirty HEAD)
+export APP_USER              := $(shell id -u --name)
+export APP_DOCKER_IMAGE_NAME := ribbybibby/$(DOCKER_IMAGE_NAME)
 
 all: clean format vet build test
 
@@ -36,20 +34,20 @@ vet:
 build:
 	@echo ">> building binary"
 	@CGO_ENABLED=0 go build -v \
-		-ldflags "-X github.com/prometheus/common/version.Version=$(APP_VERSION) \
-		-X github.com/prometheus/common/version.Revision=$(APP_REVISION) \
+		-ldflags "-X github.com/prometheus/common/version.Version=dev \
+		-X github.com/prometheus/common/version.Revision=$(shell git rev-parse HEAD) \
 		-X github.com/prometheus/common/version.Branch=$(APP_BRANCH) \
 		-X github.com/prometheus/common/version.BuildUser=$(APP_USER)@$(APP_HOST) \
-		-X github.com/prometheus/common/version.BuildDate=$(APP_BUILD_DATE)\
+		-X github.com/prometheus/common/version.BuildDate=$(shell date '+%Y%m%d-%H:%M:%S') \
 		" \
 		-o $(BIN_NAME) .
 
 docker:
 	@echo ">> building docker image"
-	@docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" .
+	@docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" -f Dockerfile.local .
 
 $(GOPATH)/bin/goreleaser:
-	@curl -sfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | BINDIR=$(GOPATH)/bin sh
+	@go install github.com/goreleaser/goreleaser@v1.2.2
 
 snapshot: $(GOPATH)/bin/goreleaser
 	@echo ">> building snapshot"

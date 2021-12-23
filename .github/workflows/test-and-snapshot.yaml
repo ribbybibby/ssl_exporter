@@ -1,19 +1,34 @@
-name: build
+name: test-and-snapshot
+
 on: [push, pull_request]
+
 jobs:
-  build:
-    name: build
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Build the Docker image
-        run: docker build .
+      - uses: actions/checkout@v2
+
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15.x
+          go-version: 1.17.x
+
+      - name: Test
+        run: make test
+
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.17.x
+
       - name: Build release snapshot
         run: make snapshot
+
       - name: Archive release snapshot
         uses: actions/upload-artifact@v2
         with:

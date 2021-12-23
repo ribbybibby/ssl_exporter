@@ -17,7 +17,6 @@ import (
 	"golang.org/x/crypto/ocsp"
 
 	"github.com/prometheus/client_golang/prometheus"
-	pconfig "github.com/prometheus/common/config"
 )
 
 // TestProbeTCP tests the typical case
@@ -32,7 +31,7 @@ func TestProbeTCP(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -69,7 +68,7 @@ func TestProbeTCPInvalidName(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -102,7 +101,7 @@ func TestProbeTCPServerName(t *testing.T) {
 	host, listenPort, _ := net.SplitHostPort(server.Listener.Addr().String())
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 			ServerName:         host,
@@ -147,7 +146,7 @@ func TestProbeTCPExpired(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -184,7 +183,7 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: true,
 		},
@@ -223,7 +222,7 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 		TCP: config.TCPProbe{
 			StartTLS: "smtp",
 		},
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -262,7 +261,7 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 		TCP: config.TCPProbe{
 			StartTLS: "ftp",
 		},
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -301,7 +300,7 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 		TCP: config.TCPProbe{
 			StartTLS: "imap",
 		},
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -340,7 +339,7 @@ func TestProbeTCPStartTLSPostgreSQL(t *testing.T) {
 		TCP: config.TCPProbe{
 			StartTLS: "postgres",
 		},
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -377,7 +376,7 @@ func TestProbeTCPTimeout(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -420,7 +419,7 @@ func TestProbeTCPOCSP(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile:             caFile,
 			InsecureSkipVerify: false,
 		},
@@ -502,7 +501,7 @@ func TestProbeTCPVerifiedChains(t *testing.T) {
 	defer server.Close()
 
 	module := config.Module{
-		TLSConfig: pconfig.TLSConfig{
+		TLSConfig: config.TLSConfig{
 			CAFile: caFile,
 		},
 	}

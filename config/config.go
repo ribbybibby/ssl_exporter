@@ -1,12 +1,13 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"os"
 	"time"
 
-	"github.com/prometheus/common/config"
+	pconfig "github.com/prometheus/common/config"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -63,12 +64,64 @@ type Config struct {
 
 // Module configures a prober
 type Module struct {
-	Prober     string           `yaml:"prober,omitempty"`
-	Timeout    time.Duration    `yaml:"timeout,omitempty"`
-	TLSConfig  config.TLSConfig `yaml:"tls_config,omitempty"`
-	HTTPS      HTTPSProbe       `yaml:"https,omitempty"`
-	TCP        TCPProbe         `yaml:"tcp,omitempty"`
-	Kubernetes KubernetesProbe  `yaml:"kubernetes,omitempty"`
+	Prober     string          `yaml:"prober,omitempty"`
+	Timeout    time.Duration   `yaml:"timeout,omitempty"`
+	TLSConfig  TLSConfig       `yaml:"tls_config,omitempty"`
+	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
+	TCP        TCPProbe        `yaml:"tcp,omitempty"`
+	Kubernetes KubernetesProbe `yaml:"kubernetes,omitempty"`
+}
+
+// TLSConfig is a superset of config.TLSConfig that supports TLS renegotiation
+type TLSConfig struct {
+	CAFile             string `yaml:"ca_file,omitempty"`
+	CertFile           string `yaml:"cert_file,omitempty"`
+	KeyFile            string `yaml:"key_file,omitempty"`
+	ServerName         string `yaml:"server_name,omitempty"`
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
+	// Renegotiation controls what types of TLS renegotiation are supported.
+	// Supported values: never (default), once, freely.
+	Renegotiation renegotiation `yaml:"renegotiation,omitempty"`
+}
+
+type renegotiation tls.RenegotiationSupport
+
+func (r *renegotiation) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var v string
+	if err := unmarshal(&v); err != nil {
+		return err
+	}
+	switch v {
+	case "", "never":
+		*r = renegotiation(tls.RenegotiateNever)
+	case "once":
+		*r = renegotiation(tls.RenegotiateOnceAsClient)
+	case "freely":
+		*r = renegotiation(tls.RenegotiateFreelyAsClient)
+	default:
+		return fmt.Errorf("unsupported TLS renegotiation type %s", v)
+	}
+
+	return nil
+}
+
+// NewTLSConfig creates a new tls.Config from the given TLSConfig,
+// plus our local extensions
+func NewTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
+	tlsConfig, err := pconfig.NewTLSConfig(&pconfig.TLSConfig{
+		CAFile:             cfg.CAFile,
+		CertFile:           cfg.CertFile,
+		KeyFile:            cfg.KeyFile,
+		ServerName:         cfg.ServerName,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig.Renegotiation = tls.RenegotiationSupport(cfg.Renegotiation)
+
+	return tlsConfig, nil
 }
 
 // TCPProbe configures a tcp probe
