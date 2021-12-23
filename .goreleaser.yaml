@@ -13,12 +13,24 @@ builds:
     flags:
       - -v
     ldflags: |
-      -X github.com/prometheus/common/version.Version={{.Env.APP_VERSION}}
-      -X github.com/prometheus/common/version.Revision={{.Env.APP_REVISION}}
+      -X github.com/prometheus/common/version.Version={{.Version}}
+      -X github.com/prometheus/common/version.Revision={{.Commit}}
       -X github.com/prometheus/common/version.Branch={{.Env.APP_BRANCH}}
       -X github.com/prometheus/common/version.BuildUser={{.Env.APP_USER}}@{{.Env.APP_HOST}}
-      -X github.com/prometheus/common/version.BuildDate={{.Env.APP_BUILD_DATE}}
+      -X github.com/prometheus/common/version.BuildDate={{.Date}}
 release:
   github:
     owner: ribbybibby
     name: ssl_exporter
+dockers:
+- image_templates:
+  - '{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}'
+  - '{{.Env.APP_DOCKER_IMAGE_NAME}}:latest'
+  dockerfile: Dockerfile
+  build_flag_templates:
+  - "--pull"
+  - "--label=org.opencontainers.image.created={{.Date}}"
+  - "--label=org.opencontainers.image.name={{.ProjectName}}"
+  - "--label=org.opencontainers.image.revision={{.Commit}}"
+  - "--label=org.opencontainers.image.version={{.Version}}"
+  - "--label=org.opencontainers.image.source={{.GitURL}}"
