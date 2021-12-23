@@ -22,13 +22,11 @@ metric indicates if the probe has been successful.
 
 ### Docker
 
-    docker pull ribbybibby/ssl-exporter
     docker run -p 9219:9219 ribbybibby/ssl-exporter:latest <flags>
 
 ### Release process
 
-- Update the `VERSION` file in this repository and commit to master
-- Create a release in Github prefixed with `v` and GH actions will:
+- Create a release in Github with a semver tag and GH actions will:
   - Add a changelog
   - Upload binaries
   - Build and push a Docker image
