@@ -44,23 +44,21 @@ func probeKubernetes(ctx context.Context, target string, module config.Module, r
 	name := parts[1]
 
 	var tlsSecrets []v1.Secret
-	secrets, err := client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{})
+	secrets, err := client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{FieldSelector: "type=kubernetes.io/tls"})
 	if err != nil {
 		return err
 	}
 	for _, secret := range secrets.Items {
-		if secret.Type == "kubernetes.io/tls" {
-			nMatch, err := doublestar.Match(ns, secret.Namespace)
-			if err != nil {
-				return err
-			}
-			sMatch, err := doublestar.Match(name, secret.Name)
-			if err != nil {
-				return err
-			}
-			if nMatch && sMatch {
-				tlsSecrets = append(tlsSecrets, secret)
-			}
+		nMatch, err := doublestar.Match(ns, secret.Namespace)
+		if err != nil {
+			return err
+		}
+		sMatch, err := doublestar.Match(name, secret.Name)
+		if err != nil {
+			return err
+		}
+		if nMatch && sMatch {
+			tlsSecrets = append(tlsSecrets, secret)
 		}
 	}
 
