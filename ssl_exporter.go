@@ -27,7 +27,11 @@ const (
 func probeHandler(logger log.Logger, w http.ResponseWriter, r *http.Request, conf *config.Config) {
 	moduleName := r.URL.Query().Get("module")
 	if moduleName == "" {
-		moduleName = "tcp"
+		moduleName = conf.DefaultModule
+		if moduleName == "" {
+			http.Error(w, "Module parameter must be set", http.StatusBadRequest)
+			return
+		}
 	}
 	module, ok := conf.Modules[moduleName]
 	if !ok {
@@ -60,10 +64,13 @@ func probeHandler(logger log.Logger, w http.ResponseWriter, r *http.Request, con
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 
-	target := r.URL.Query().Get("target")
+	target := module.Target
 	if target == "" {
-		http.Error(w, "Target parameter is missing", http.StatusBadRequest)
-		return
+		target = r.URL.Query().Get("target")
+		if target == "" {
+			http.Error(w, "Target parameter is missing", http.StatusBadRequest)
+			return
+		}
 	}
 
 	probeFunc, ok := prober.Probers[module.Prober]

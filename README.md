@@ -248,6 +248,11 @@ configuration file with `--config.file`. The file is written in yaml format,
 defined by the schema below.
 
 ```
+# The default module to use. If omitted, then the module must be provided by the
+# 'module' query parameter
+default_module: <string>
+
+# Module configuration
 modules: [<module>]
 ```
 
@@ -256,6 +261,10 @@ modules: [<module>]
 ```
 # The type of probe (https, tcp, file, kubernetes, kubeconfig)
 prober: <prober_string>
+
+# The probe target. If set, then the 'target' query parameter is ignored.
+# If omitted, then the 'target' query parameter is required.
+target: <string>
 
 # How long the probe will wait before giving up.
 [ timeout: <duration> ]

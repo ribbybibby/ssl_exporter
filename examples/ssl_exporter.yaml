@@ -1,3 +1,4 @@
+default_module: https
 modules:
   https:
     prober: https
@@ -34,6 +35,9 @@ modules:
       starttls: smtp
   file:
     prober: file
+  file_ca_certificates:
+    prober: file
+    target: /etc/ssl/certs/ca-certificates.crt
   kubernetes:
     prober: kubernetes
   kubernetes_kubeconfig:

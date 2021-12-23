@@ -15,7 +15,8 @@ var (
 	// DefaultConfig is the default configuration that is used when no
 	// configuration file is provided
 	DefaultConfig = &Config{
-		map[string]Module{
+		DefaultModule: "tcp",
+		Modules: map[string]Module{
 			"tcp": Module{
 				Prober: "tcp",
 			},
@@ -59,12 +60,14 @@ func LoadConfig(confFile string) (*Config, error) {
 
 // Config configures the exporter
 type Config struct {
-	Modules map[string]Module `yaml:"modules"`
+	DefaultModule string            `yaml:"default_module"`
+	Modules       map[string]Module `yaml:"modules"`
 }
 
 // Module configures a prober
 type Module struct {
 	Prober     string          `yaml:"prober,omitempty"`
+	Target     string          `yaml:"target,omitempty"`
 	Timeout    time.Duration   `yaml:"timeout,omitempty"`
 	TLSConfig  TLSConfig       `yaml:"tls_config,omitempty"`
 	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
