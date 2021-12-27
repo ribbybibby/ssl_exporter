@@ -164,6 +164,33 @@ func (t *TCPServer) StartIMAP() {
 	}()
 }
 
+// StartPOP3 starts a listener that negotiates a TLS connection with an pop3
+// client using STARTTLS
+func (t *TCPServer) StartPOP3() {
+	go func() {
+		conn, err := t.Listener.Accept()
+		if err != nil {
+			panic(fmt.Sprintf("Error accepting on socket: %s", err))
+		}
+		defer conn.Close()
+
+		fmt.Fprintf(conn, "+OK XPOP3 ready.\n")
+		if _, e := fmt.Fscanf(conn, "STLS\n"); e != nil {
+			panic("Error in dialog. No STLS received.")
+		}
+		fmt.Fprintf(conn, "+OK Begin TLS negotiation now.\n")
+
+		// Upgrade to TLS.
+		tlsConn := tls.Server(conn, t.TLS)
+		if err := tlsConn.Handshake(); err != nil {
+			level.Error(t.logger).Log("msg", err)
+		}
+		defer tlsConn.Close()
+
+		t.stopCh <- struct{}{}
+	}()
+}
+
 // StartPostgreSQL starts a listener that negotiates a TLS connection with an postgresql
 // client using STARTTLS
 func (t *TCPServer) StartPostgreSQL() {
