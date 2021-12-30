@@ -9,6 +9,9 @@ builds:
       - windows
     goarch:
       - amd64
+      - '386'
+      - arm
+      - arm64
       - mips64le
     flags:
       - -v
