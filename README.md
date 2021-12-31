@@ -311,7 +311,7 @@ target: <string>
 ### <tcp_probe>
 
 ```
-# Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap, postgres)
+# Use the STARTTLS command before starting TLS for those protocols that support it (smtp, ftp, imap, pop3, postgres)
 [ starttls: <string> ]
 ```
 
