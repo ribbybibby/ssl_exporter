@@ -8,8 +8,8 @@ builds:
       - darwin
       - windows
     goarch:
+      - "386"
       - amd64
-      - '386'
       - arm
       - arm64
       - mips64le
@@ -26,14 +26,37 @@ release:
     owner: ribbybibby
     name: ssl_exporter
 dockers:
-- image_templates:
-  - '{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}'
-  - '{{.Env.APP_DOCKER_IMAGE_NAME}}:latest'
-  dockerfile: Dockerfile
-  build_flag_templates:
-  - "--pull"
-  - "--label=org.opencontainers.image.created={{.Date}}"
-  - "--label=org.opencontainers.image.name={{.ProjectName}}"
-  - "--label=org.opencontainers.image.revision={{.Commit}}"
-  - "--label=org.opencontainers.image.version={{.Version}}"
-  - "--label=org.opencontainers.image.source={{.GitURL}}"
+  - image_templates:
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-amd64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-arm64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/arm64"
+    goarch: arm64
+docker_manifests:
+  - name_template: "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}"
+    image_templates:
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-amd64"
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-arm64"
+  - name_template: "{{.Env.APP_DOCKER_IMAGE_NAME}}:latest"
+    image_templates:
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-amd64"
+      - "{{.Env.APP_DOCKER_IMAGE_NAME}}:{{.Version}}-arm64"
