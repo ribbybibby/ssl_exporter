@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/ribbybibby/ssl_exporter/config"
+	"github.com/ribbybibby/ssl_exporter/v2/config"
 )
 
 // newTLSConfig sets up TLS config and instruments it with a function that

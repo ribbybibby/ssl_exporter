@@ -1,4 +1,4 @@
-module github.com/ribbybibby/ssl_exporter
+module github.com/ribbybibby/ssl_exporter/v2
 
 require (
 	github.com/bmatcuk/doublestar/v2 v2.0.4

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ribbybibby/ssl_exporter/config"
-	"github.com/ribbybibby/ssl_exporter/test"
+	"github.com/ribbybibby/ssl_exporter/v2/config"
+	"github.com/ribbybibby/ssl_exporter/v2/test"
 	"golang.org/x/crypto/ocsp"
 
 	"github.com/prometheus/client_golang/prometheus"

@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/ribbybibby/ssl_exporter/config"
+	"github.com/ribbybibby/ssl_exporter/v2/config"
 	"gopkg.in/yaml.v3"
 )
 

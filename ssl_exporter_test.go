@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
-	"github.com/ribbybibby/ssl_exporter/config"
-	"github.com/ribbybibby/ssl_exporter/test"
+	"github.com/ribbybibby/ssl_exporter/v2/config"
+	"github.com/ribbybibby/ssl_exporter/v2/test"
 )
 
 // TestProbeHandler tests that the probe handler sets the ssl_probe_success and
