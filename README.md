@@ -209,6 +209,23 @@ sources in the following order:
 - The default configuration file (`$HOME/.kube/config`)
 - The in-cluster environment, if running in a pod
 
+```yml
+- job_name: "ssl-kubernetes"
+  metrics_path: /probe
+  params:
+    module: ["kubernetes"]
+  static_configs:
+   - targets:
+      - "test-namespace/nginx-cert"
+  relabel_configs:
+   - source_labels: [ __address__ ]
+     target_label: __param_target
+   - source_labels: [ __param_target ]
+     target_label: instance
+   - target_label: __address__
+     replacement: 127.0.0.1:9219
+```
+
 ### Kubeconfig
 
 The `kubeconfig` prober exports `ssl_kubeconfig_cert_not_after` and
