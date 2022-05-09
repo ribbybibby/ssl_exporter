@@ -223,7 +223,7 @@ sources in the following order:
    - source_labels: [ __param_target ]
      target_label: instance
    - target_label: __address__
-     replacement: ${1}:9219
+     replacement: 127.0.0.1:9219
 ```
 
 ### Kubeconfig
