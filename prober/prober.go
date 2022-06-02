@@ -14,6 +14,7 @@ var (
 		"https":      ProbeHTTPS,
 		"http":       ProbeHTTPS,
 		"tcp":        ProbeTCP,
+		"ocsp":       ProbeOCSP,
 		"file":       ProbeFile,
 		"kubernetes": ProbeKubernetes,
 		"kubeconfig": ProbeKubeconfig,
