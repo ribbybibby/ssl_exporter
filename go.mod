@@ -4,7 +4,7 @@ require (
 	github.com/bmatcuk/doublestar/v2 v2.0.4
 	github.com/go-kit/log v0.2.1
 	github.com/prometheus/client_golang v1.13.0
-	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.37.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
