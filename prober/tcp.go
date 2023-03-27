@@ -53,7 +53,7 @@ type queryResponse struct {
 	send        string
 	sendBytes   []byte
 	expectBytes []byte
-	expectFn    func([]byte, int) error
+	expectFn    func(buffer []byte, bytes int) error
 }
 
 var (
