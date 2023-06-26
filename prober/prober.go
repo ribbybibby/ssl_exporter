@@ -15,6 +15,7 @@ var (
 		"http":       ProbeHTTPS,
 		"tcp":        ProbeTCP,
 		"file":       ProbeFile,
+		"jks":        ProbeJKS,
 		"kubernetes": ProbeKubernetes,
 		"kubeconfig": ProbeKubeconfig,
 	}

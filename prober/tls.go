@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"net"
 
+	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/v2/config"
 )
@@ -68,5 +69,23 @@ func decodeCertificates(data []byte) ([]*x509.Certificate, error) {
 		}
 	}
 
+	return certs, nil
+}
+
+func readJavaKeyStore(ks keystore.KeyStore) ([]*x509.Certificate, error) {
+	var certs []*x509.Certificate
+	for _, certEntry := range ks.Aliases() {
+		if ks.IsTrustedCertificateEntry(certEntry) {
+			certItem, err := ks.GetTrustedCertificateEntry(certEntry)
+			if err != nil {
+				return certs, err
+			}
+			x509cert, err := x509.ParseCertificate(certItem.Certificate.Content)
+			if err != nil {
+				return certs, err
+			}
+			certs = append(certs, x509cert)
+		}
+	}
 	return certs, nil
 }

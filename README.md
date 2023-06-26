@@ -4,6 +4,7 @@ Exports metrics for certificates collected from various sources:
 - [TCP probes](#tcp)
 - [HTTPS probes](#https)
 - [PEM files](#file)
+- [Java KeyStore files](#jks)
 - [Kubernetes secrets](#kubernetes)
 - [Kubeconfig files](#kubeconfig)
 
@@ -62,6 +63,8 @@ Flags:
 | ssl_cert_not_before            | The date before which a peer certificate is not valid. Expressed as a Unix Epoch Time.                           | serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                         | tcp, https |
 | ssl_file_cert_not_after        | The date after which a certificate found by the file prober expires. Expressed as a Unix Epoch Time.             | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                   | file       |
 | ssl_file_cert_not_before       | The date before which a certificate found by the file prober is not valid. Expressed as a Unix Epoch Time.       | file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou                   | file       |
+| ssl_jks_cert_not_after         | The date after which a certificate found by the jks prober expires. Expressed as a Unix Epoch Time.              | hostname, file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou         | jks       |
+| ssl_jks_cert_not_before        | The date before which a certificate found by the jks prober is not valid. Expressed as a Unix Epoch Time.        | hostname, file, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou         | jks       |
 | ssl_kubernetes_cert_not_after  | The date after which a certificate found by the kubernetes prober expires. Expressed as a Unix Epoch Time.       | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubernetes |
 | ssl_kubernetes_cert_not_before | The date before which a certificate found by the kubernetes prober is not valid. Expressed as a Unix Epoch Time. | namespace, secret, key, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubernetes |
 | ssl_kubeconfig_cert_not_after  | The date after which a certificate found by the kubeconfig prober expires. Expressed as a Unix Epoch Time.       | kubeconfig, name, type, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou | kubeconfig |
@@ -173,6 +176,46 @@ scrape_configs:
         regex: ^(.*):(.*)$
         target_label: __address__
         replacement: ${1}:9219
+```
+
+### JKS
+
+The `jks` prober exports `ssl_jks_cert_not_after` and
+`ssl_jks_cert_not_before` for PEM encoded certificates found in local java keystore files.
+
+Java KeyStore files local to the exporter can be scraped by providing them as the target
+parameter:
+
+```
+curl "localhost:9219/probe?module=jks&target=/usr/java/jdkXXX/jre/lib/security/cacerts"
+```
+
+The target parameter supports globbing (as provided by the
+[doublestar](https://github.com/bmatcuk/doublestar) package),
+which allows you to capture multiple files at once:
+
+```
+curl "localhost:9219/probe?module=file&target=/usr/java/jdkXXX/jre/lib/security/*.keystore"
+```
+
+One specific usage of this prober could be to run the exporter as a Systemd service
+in virtual machine that runs JVM and then scrape Java related keystore to check the
+expiry of certificates on each node:
+
+```yml
+scrape_configs:
+  - job_name: "java-cacerts-keystore"
+    metrics_path: /probe
+    params:
+      module: ["jks"]
+      target: ["/usr/java/jdkXXX/jre/lib/security/cacerts"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219 # SSL exporter.
 ```
 
 ### Kubernetes

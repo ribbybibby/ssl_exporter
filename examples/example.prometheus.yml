@@ -26,6 +26,14 @@ scrape_configs:
     static_configs:
       - targets:
           - 127.0.0.1:9219
+  - job_name: 'jks-files'
+    metrics_path: /probe
+    params:
+      module: ["jks"]
+      target: ["/usr/java/jdk1.8.0_74/jre/lib/security/cacerts"]
+    static_configs:
+      - targets:
+          - 127.0.0.1:9219
   - job_name: 'ssl-kubernetes-secrets'
     metrics_path: /probe
     params:
