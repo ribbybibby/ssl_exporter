@@ -11,6 +11,8 @@ import (
 	"math/big"
 	"net"
 	"time"
+
+	"github.com/pavlo-v-chernykh/keystore-go/v4"
 )
 
 // GenerateTestCertificate generates a test certificate with the given expiry date
@@ -27,6 +29,21 @@ func GenerateTestCertificate(expiry time.Time) ([]byte, []byte) {
 	_, pemCert := GenerateSelfSignedCertificateWithPrivateKey(cert, privateKey)
 
 	return pemCert, pemKey
+}
+
+// GenerateTestJKSWithCertificate generates a java keystore contains multiple certificate
+func GenerateTestJKSWithCertificate(certs []*x509.Certificate) keystore.KeyStore {
+	jks := keystore.New()
+	for idx, cert := range certs {
+		jks.SetTrustedCertificateEntry(fmt.Sprintf("cert-%d", idx), keystore.TrustedCertificateEntry{
+			CreationTime: time.Now(),
+			Certificate: keystore.Certificate{
+				Type:    "x509",
+				Content: cert.Raw,
+			},
+		})
+	}
+	return jks
 }
 
 // GenerateSignedCertificate generates a certificate that is signed
