@@ -38,6 +38,10 @@ modules:
   file_ca_certificates:
     prober: file
     target: /etc/ssl/certs/ca-certificates.crt
+  jks:
+    prober: jks
+    jks:
+      password: changeit
   kubernetes:
     prober: kubernetes
   kubernetes_kubeconfig:
