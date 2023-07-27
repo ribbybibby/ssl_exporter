@@ -4,6 +4,7 @@ Exports metrics for certificates collected from various sources:
 - [TCP probes](#tcp)
 - [HTTPS probes](#https)
 - [PEM files](#file)
+- [Remote PEM files](#remote_file)
 - [Kubernetes secrets](#kubernetes)
 - [Kubeconfig files](#kubeconfig)
 
@@ -166,6 +167,39 @@ scrape_configs:
     params:
       module: ["file"]
       target: ["/etc/kubernetes/**/*.crt"]
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: ^(.*):(.*)$
+        target_label: __address__
+        replacement: ${1}:9219
+```
+
+### Remote_file
+
+The `remote_file` prober exports `ssl_file_cert_not_after` and
+`ssl_file_cert_not_before` for PEM encoded certificates found at the
+specified remote target.
+
+Remote files can be scraped by providing them as the target parameter:
+
+```
+curl "localhost:9219/probe?module=remote_file&target=https://dummy.url/path/cert.pem"
+```
+
+The target parameter supports http and https schemes, it also support http
+redirection.
+
+Sample prometheus config:
+
+```yml
+scrape_configs:
+  - job_name: "ssl-kubernetes-file"
+    metrics_path: /probe
+    params:
+      module: ["remote_file"]
+      target: ["https://dummy.url/path/cert.pem"]
     kubernetes_sd_configs:
       - role: node
     relabel_configs:
