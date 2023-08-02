@@ -23,14 +23,12 @@ func TestProbeRemoteFileHTTP(t *testing.T) {
 	server.Start()
 	defer server.Close()
 
-	module := config.Module{}
-
 	registry := prometheus.NewRegistry()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := ProbeRemoteFile(ctx, newTestLogger(), server.URL+"/file", module, registry); err != nil {
+	if err := ProbeRemoteFile(ctx, newTestLogger(), server.URL+"/file", config.Module{}, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
 }
