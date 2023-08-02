@@ -24,6 +24,12 @@ func ProbeRemoteFile(ctx context.Context, logger log.Logger, target string, modu
 		}
 		defer tempFile.Close()
 
+		tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
 		proxy := http.ProxyFromEnvironment
 		if module.HTTPS.ProxyURL.URL != nil {
 			proxy = http.ProxyURL(module.HTTPS.ProxyURL.URL)
@@ -31,6 +37,7 @@ func ProbeRemoteFile(ctx context.Context, logger log.Logger, target string, modu
 
 		client := &http.Client{
 			Transport: &http.Transport{
+				TLSClientConfig:   tlsConfig,
 				Proxy:             proxy,
 				DisableKeepAlives: true,
 			},
