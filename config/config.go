@@ -26,6 +26,9 @@ var (
 			"https": Module{
 				Prober: "https",
 			},
+			"http_file": Module{
+				Prober: "http_file",
+			},
 			"file": Module{
 				Prober: "file",
 			},
@@ -71,6 +74,7 @@ type Module struct {
 	Timeout    time.Duration   `yaml:"timeout,omitempty"`
 	TLSConfig  TLSConfig       `yaml:"tls_config,omitempty"`
 	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
+	HTTPFile   HTTPFileProbe   `yaml:"http_file,omitempty"`
 	TCP        TCPProbe        `yaml:"tcp,omitempty"`
 	Kubernetes KubernetesProbe `yaml:"kubernetes,omitempty"`
 }
@@ -134,6 +138,11 @@ type TCPProbe struct {
 
 // HTTPSProbe configures a https probe
 type HTTPSProbe struct {
+	ProxyURL URL `yaml:"proxy_url,omitempty"`
+}
+
+// HTTPFileProbe configures a http_file probe
+type HTTPFileProbe struct {
 	ProxyURL URL `yaml:"proxy_url,omitempty"`
 }
 

@@ -13,6 +13,7 @@ var (
 	Probers = map[string]ProbeFn{
 		"https":      ProbeHTTPS,
 		"http":       ProbeHTTPS,
+		"http_file":  ProbeHTTPFile,
 		"tcp":        ProbeTCP,
 		"file":       ProbeFile,
 		"kubernetes": ProbeKubernetes,
