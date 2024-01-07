@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,22 +16,15 @@ func ProbeRemoteFile(ctx context.Context, logger log.Logger, target string, modu
 	errCh := make(chan error, 1)
 
 	go func() {
-		tempFile, err := os.CreateTemp("", "download-*.tmp")
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer tempFile.Close()
-
-		tlsConfig, err := newTLSConfig("", registry, &module.TLSConfig)
-		if err != nil {
-			errCh <- err
-			return
-		}
-
 		proxy := http.ProxyFromEnvironment
 		if module.HTTPS.ProxyURL.URL != nil {
 			proxy = http.ProxyURL(module.HTTPS.ProxyURL.URL)
+		}
+
+		tlsConfig, err := config.NewTLSConfig(&module.TLSConfig)
+		if err != nil {
+			errCh <- err
+			return
 		}
 
 		client := &http.Client{
@@ -55,15 +47,10 @@ func ProbeRemoteFile(ctx context.Context, logger log.Logger, target string, modu
 			return
 		}
 
-		// Copy the content of the response body to the temporary file
-		_, err = io.Copy(tempFile, resp.Body)
-		if err != nil {
-			errCh <- err
-			return
-		}
+		body, err := io.ReadAll(resp.Body)
+		certs, err := decodeCertificates([]byte(body))
 
-		errCh <- collectFileMetrics(logger, []string{tempFile.Name()}, registry)
-		defer os.Remove(tempFile.Name())
+		errCh <- collectCertificateMetrics(certs, registry)
 	}()
 
 	select {
