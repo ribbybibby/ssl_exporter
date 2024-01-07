@@ -31,6 +31,12 @@ func TestProbeRemoteFileHTTP(t *testing.T) {
 	if err := ProbeRemoteFile(ctx, newTestLogger(), server.URL+"/file", config.Module{}, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(testcertPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
 }
 
 func TestProbeRemoteFileHTTPS(t *testing.T) {
@@ -62,4 +68,10 @@ func TestProbeRemoteFileHTTPS(t *testing.T) {
 	if err := ProbeRemoteFile(ctx, newTestLogger(), server.URL+"/file", module, registry); err != nil {
 		t.Fatalf("error: %s", err)
 	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
 }
