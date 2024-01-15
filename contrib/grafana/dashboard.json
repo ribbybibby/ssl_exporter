@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Shows certitificate expiration times, as well as failed ssl connects",
+  "description": "Shows certificate expiration times, as well as failed ssl connects",
   "editable": true,
   "gnetId": 11279,
   "graphTooltip": 0,
