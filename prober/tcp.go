@@ -71,7 +71,7 @@ var (
 				send: "EHLO prober",
 			},
 			queryResponse{
-				expect: "^250-STARTTLS",
+				expect: "^250(-| )STARTTLS",
 			},
 			queryResponse{
 				send: "STARTTLS",
