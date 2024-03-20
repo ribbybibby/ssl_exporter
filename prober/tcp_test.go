@@ -246,6 +246,46 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
+// TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
+// which provides STARTTLS as last option in the list
+func TestProbeTCPStartTLSSMTPLastOptionStartTLS(t *testing.T) {
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartSMTPLastOptionStartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TCP: config.TCPProbe{
+			StartTLS: "smtp",
+		},
+		TLSConfig: config.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
+}
+
 // TestProbeTCPStartTLSFTP tests STARTTLS against a mock FTP server
 func TestProbeTCPStartTLSFTP(t *testing.T) {
 	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
