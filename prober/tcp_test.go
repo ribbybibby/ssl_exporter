@@ -246,16 +246,16 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
-// TestProbeTCPStartTLSSMTP tests STARTTLS against a mock SMTP server
-// which provides STARTTLS as last option in the list
-func TestProbeTCPStartTLSSMTPLastOptionStartTLS(t *testing.T) {
+// TestProbeTCPStartTLSSMTPWithDashInResponse tests STARTTLS against a mock SMTP server
+// which provides STARTTLS as option with dash which is okay when it used as the last option
+func TestProbeTCPStartTLSSMTPWithDashInResponse(t *testing.T) {
 	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 	defer teardown()
 
-	server.StartSMTPLastOptionStartTLS()
+	server.StartSMTPWithDashInResponse()
 	defer server.Close()
 
 	module := config.Module{
