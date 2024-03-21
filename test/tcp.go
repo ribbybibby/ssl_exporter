@@ -105,9 +105,10 @@ func (t *TCPServer) StartSMTP() {
 	}()
 }
 
-// StartSMTP starts a listener that negotiates a TLS connection with an smtp
-// client using STARTTLS where server provides STARTTLS as last option in the list
-func (t *TCPServer) StartSMTPLastOptionStartTLS() {
+// StartSMTPWithDashInResponse starts a listener that negotiates a TLS connection with an smtp
+// client using STARTTLS. The server provides the STARTTLS response in the form '250 STARTTLS' 
+// (with a space, rather than a dash)
+func (t *TCPServer) StartSMTPWithDashInResponse() {
 	go func() {
 		conn, err := t.Listener.Accept()
 		if err != nil {
