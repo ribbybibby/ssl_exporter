@@ -105,6 +105,45 @@ func (t *TCPServer) StartSMTP() {
 	}()
 }
 
+// StartSMTPWithDashInResponse starts a listener that negotiates a TLS connection with an smtp
+// client using STARTTLS. The server provides the STARTTLS response in the form '250 STARTTLS' 
+// (with a space, rather than a dash)
+func (t *TCPServer) StartSMTPWithDashInResponse() {
+	go func() {
+		conn, err := t.Listener.Accept()
+		if err != nil {
+			panic(fmt.Sprintf("Error accepting on socket: %s", err))
+		}
+		defer conn.Close()
+
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			panic("Error setting deadline")
+		}
+
+		fmt.Fprintf(conn, "220 ESMTP StartTLS pseudo-server\n")
+		if _, e := fmt.Fscanf(conn, "EHLO prober\n"); e != nil {
+			panic("Error in dialog. No EHLO received.")
+		}
+		fmt.Fprintf(conn, "250-pseudo-server.example.net\n")
+		fmt.Fprintf(conn, "250-DSN\n")
+		fmt.Fprintf(conn, "250 STARTTLS\n")
+
+		if _, e := fmt.Fscanf(conn, "STARTTLS\n"); e != nil {
+			panic("Error in dialog. No (TLS) STARTTLS received.")
+		}
+		fmt.Fprintf(conn, "220 2.0.0 Ready to start TLS\n")
+
+		// Upgrade to TLS.
+		tlsConn := tls.Server(conn, t.TLS)
+		if err := tlsConn.Handshake(); err != nil {
+			level.Error(t.logger).Log("msg", err)
+		}
+		defer tlsConn.Close()
+
+		t.stopCh <- struct{}{}
+	}()
+}
+
 // StartFTP starts a listener that negotiates a TLS connection with an ftp
 // client using AUTH TLS
 func (t *TCPServer) StartFTP() {
