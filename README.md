@@ -26,6 +26,7 @@ metric indicates if the probe has been successful.
 
 ### Release process
 
+- Update the Helm chart version in [`charts/ssl-exporter/Chart.yaml`](charts/ssl-exporter/Chart.yaml)
 - Create a release in Github with a semver tag and GH actions will:
   - Add a changelog
   - Upload binaries
@@ -77,6 +78,11 @@ Flags:
 | ssl_tls_version_info           | The TLS version used. Always 1.                                                                                  | version                                                                     | tcp, https |
 | ssl_verified_cert_not_after    | The date after which a certificate in the verified chain expires. Expressed as a Unix Epoch Time.                | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou               | tcp, https |
 | ssl_verified_cert_not_before   | The date before which a certificate in the verified chain is not valid. Expressed as a Unix Epoch Time.          | chain_no, serial_no, issuer_cn, cn, dnsnames, ips, emails, ou               | tcp, https |
+
+## Helm install
+
+    git clone https://github.com/ribbybibby/ssl_exporter
+    helm install ssl-exporter ssl_exporter/charts/ssl-exporter
 
 ## Configuration
 

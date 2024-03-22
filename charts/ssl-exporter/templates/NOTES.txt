@@ -1,0 +1,6 @@
+SSL Certificate Exporter for Prometheus is installed!
+
+You should be able to see metrics like ssl_prober and ssl_*_cert_not_after appear
+in your prometheus very soon. If not, check the logs by running
+
+  kubectl -n {{ .Release.Namespace }} logs -f $(kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/name={{ include "ssl-exporter.name" . }} -o name)
