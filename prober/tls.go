@@ -57,7 +57,7 @@ func contains(certs []*x509.Certificate, cert *x509.Certificate) bool {
 func decodeCertificates(data []byte) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
-		if block.Type == "CERTIFICATE" {
+		if block.Type == "CERTIFICATE" || block.Type == "TRUSTED CERTIFICATE" {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				return certs, err
