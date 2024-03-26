@@ -29,6 +29,9 @@ var (
 			"file": Module{
 				Prober: "file",
 			},
+			"remote_file": Module{
+				Prober: "remote_file",
+			},
 			"kubernetes": Module{
 				Prober: "kubernetes",
 			},
