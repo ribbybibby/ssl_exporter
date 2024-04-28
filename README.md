@@ -4,7 +4,7 @@ Exports metrics for certificates collected from various sources:
 - [TCP probes](#tcp)
 - [HTTPS probes](#https)
 - [PEM files](#file)
-- [Remote PEM files](#remote_file)
+- [Remote PEM files](#http_file)
 - [Kubernetes secrets](#kubernetes)
 - [Kubeconfig files](#kubeconfig)
 
@@ -131,7 +131,7 @@ scrape_configs:
 ```
 
 This will use proxy servers discovered by the environment variables `HTTP_PROXY`,
-`HTTPS_PROXY` and `ALL_PROXY`. Or, you can set the `proxy_url` option in the module
+`HTTPS_PROXY` and `ALL_PROXY`. Or, you can set the `https.proxy_url` option in the module
 configuration.
 
 The latter takes precedence.
@@ -176,38 +176,43 @@ scrape_configs:
         replacement: ${1}:9219
 ```
 
-### Remote_file
+### HTTP File
 
-The `remote_file` prober exports `ssl_file_cert_not_after` and
-`ssl_file_cert_not_before` for PEM encoded certificates found at the
-specified remote target.
-
-Remote files can be scraped by providing them as the target parameter:
+The `http_file` prober exports `ssl_cert_not_after` and
+`ssl_cert_not_before` for PEM encoded certificates found at the
+specified URL.
 
 ```
-curl "localhost:9219/probe?module=remote_file&target=https://dummy.url/path/cert.pem"
+curl "localhost:9219/probe?module=http_file&target=https://www.paypalobjects.com/marketing/web/logos/paypal_com.pem"
 ```
 
-The target parameter supports http and https schemes, it also support http
-redirection.
-
-Sample prometheus config:
+Here's a sample Prometheus configuration:
 
 ```yml
 scrape_configs:
-  - job_name: "ssl-kubernetes-file"
+  - job_name: 'ssl-http-files'
     metrics_path: /probe
     params:
-      module: ["remote_file"]
-      target: ["https://dummy.url/path/cert.pem"]
-    kubernetes_sd_configs:
-      - role: node
+      module: ["http_file"]
+    static_configs:
+      - targets:
+        - 'https://www.paypalobjects.com/marketing/web/logos/paypal_com.pem'
+        - 'https://d3frv9g52qce38.cloudfront.net/amazondefault/amazon_web_services_inc_2024.pem'
     relabel_configs:
       - source_labels: [__address__]
-        regex: ^(.*):(.*)$
-        target_label: __address__
-        replacement: ${1}:9219
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219
 ```
+
+For proxying to the target resource, this prober will use proxy servers
+discovered in the environment variables `HTTP_PROXY`, `HTTPS_PROXY` and
+`ALL_PROXY`. Or, you can set the `http_file.proxy_url` option in the module
+configuration.
+
+The latter takes precedence.
 
 ### Kubernetes
 
@@ -327,6 +332,7 @@ target: <string>
 [ https: <https_probe> ]
 [ tcp: <tcp_probe> ]
 [ kubernetes: <kubernetes_probe> ]
+[ http_file: <http_file_probe> ]
 ```
 
 ### <tls_config>
@@ -371,6 +377,13 @@ target: <string>
 ```
 # The path of a kubeconfig file to configure the probe
 [ kubeconfig: <string> ]
+```
+
+### <http_file_probe>
+
+```
+# HTTP proxy server to use to connect to the targets.
+[ proxy_url: <string> ]
 ```
 
 ## Example Queries

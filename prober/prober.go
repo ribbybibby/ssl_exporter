@@ -11,13 +11,13 @@ import (
 var (
 	// Probers maps a friendly name to a corresponding probe function
 	Probers = map[string]ProbeFn{
-		"https":       ProbeHTTPS,
-		"http":        ProbeHTTPS,
-		"tcp":         ProbeTCP,
-		"file":        ProbeFile,
-		"remote_file": ProbeRemoteFile,
-		"kubernetes":  ProbeKubernetes,
-		"kubeconfig":  ProbeKubeconfig,
+		"https":      ProbeHTTPS,
+		"http":       ProbeHTTPS,
+		"tcp":        ProbeTCP,
+		"file":       ProbeFile,
+		"http_file":  ProbeHTTPFile,
+		"kubernetes": ProbeKubernetes,
+		"kubeconfig": ProbeKubeconfig,
 	}
 )
 
