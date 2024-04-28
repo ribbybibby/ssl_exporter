@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bmatcuk/doublestar/v2"
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ribbybibby/ssl_exporter/v2/config"
@@ -15,7 +15,7 @@ func ProbeFile(ctx context.Context, logger log.Logger, target string, module con
 	errCh := make(chan error, 1)
 
 	go func() {
-		files, err := doublestar.Glob(target)
+		files, err := doublestar.FilepathGlob(target)
 		if err != nil {
 			errCh <- err
 			return
