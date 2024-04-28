@@ -12,8 +12,11 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 	"github.com/ribbybibby/ssl_exporter/v2/config"
 )
+
+var userAgent = fmt.Sprintf("SSLExporter/%s", version.Version)
 
 // ProbeHTTPS performs a https probe
 func ProbeHTTPS(ctx context.Context, logger log.Logger, target string, module config.Module, registry *prometheus.Registry) error {
@@ -57,6 +60,7 @@ func ProbeHTTPS(ctx context.Context, logger log.Logger, target string, module co
 		return err
 	}
 	request = request.WithContext(ctx)
+	request.Header.Set("User-Agent", userAgent)
 	resp, err := client.Do(request)
 	if err != nil {
 		return err

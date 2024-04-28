@@ -35,6 +35,7 @@ func ProbeHTTPFile(ctx context.Context, logger log.Logger, target string, module
 	if err != nil {
 		return fmt.Errorf("creating http request: %w", err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("making http request: %w", err)
