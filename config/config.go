@@ -17,22 +17,25 @@ var (
 	DefaultConfig = &Config{
 		DefaultModule: "tcp",
 		Modules: map[string]Module{
-			"tcp": Module{
+			"tcp": {
 				Prober: "tcp",
 			},
-			"http": Module{
+			"http": {
 				Prober: "https",
 			},
-			"https": Module{
+			"https": {
 				Prober: "https",
 			},
-			"file": Module{
+			"file": {
 				Prober: "file",
 			},
-			"kubernetes": Module{
+			"http_file": {
+				Prober: "http_file",
+			},
+			"kubernetes": {
 				Prober: "kubernetes",
 			},
-			"kubeconfig": Module{
+			"kubeconfig": {
 				Prober: "kubeconfig",
 			},
 		},
@@ -73,6 +76,7 @@ type Module struct {
 	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
 	TCP        TCPProbe        `yaml:"tcp,omitempty"`
 	Kubernetes KubernetesProbe `yaml:"kubernetes,omitempty"`
+	HTTPFile   HTTPFileProbe   `yaml:"http_file,omitempty"`
 }
 
 // TLSConfig is a superset of config.TLSConfig that supports TLS renegotiation
@@ -140,6 +144,11 @@ type HTTPSProbe struct {
 // KubernetesProbe configures a kubernetes probe
 type KubernetesProbe struct {
 	Kubeconfig string `yaml:"kubeconfig,omitempty"`
+}
+
+// HTTPFileProbe configures a http_file probe
+type HTTPFileProbe struct {
+	ProxyURL URL `yaml:"proxy_url,omitempty"`
 }
 
 // URL is a custom URL type that allows validation at configuration load time

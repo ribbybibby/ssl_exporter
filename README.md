@@ -4,6 +4,7 @@ Exports metrics for certificates collected from various sources:
 - [TCP probes](#tcp)
 - [HTTPS probes](#https)
 - [PEM files](#file)
+- [Remote PEM files](#http_file)
 - [Kubernetes secrets](#kubernetes)
 - [Kubeconfig files](#kubeconfig)
 
@@ -130,7 +131,7 @@ scrape_configs:
 ```
 
 This will use proxy servers discovered by the environment variables `HTTP_PROXY`,
-`HTTPS_PROXY` and `ALL_PROXY`. Or, you can set the `proxy_url` option in the module
+`HTTPS_PROXY` and `ALL_PROXY`. Or, you can set the `https.proxy_url` option in the module
 configuration.
 
 The latter takes precedence.
@@ -174,6 +175,44 @@ scrape_configs:
         target_label: __address__
         replacement: ${1}:9219
 ```
+
+### HTTP File
+
+The `http_file` prober exports `ssl_cert_not_after` and
+`ssl_cert_not_before` for PEM encoded certificates found at the
+specified URL.
+
+```
+curl "localhost:9219/probe?module=http_file&target=https://www.paypalobjects.com/marketing/web/logos/paypal_com.pem"
+```
+
+Here's a sample Prometheus configuration:
+
+```yml
+scrape_configs:
+  - job_name: 'ssl-http-files'
+    metrics_path: /probe
+    params:
+      module: ["http_file"]
+    static_configs:
+      - targets:
+        - 'https://www.paypalobjects.com/marketing/web/logos/paypal_com.pem'
+        - 'https://d3frv9g52qce38.cloudfront.net/amazondefault/amazon_web_services_inc_2024.pem'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219
+```
+
+For proxying to the target resource, this prober will use proxy servers
+discovered in the environment variables `HTTP_PROXY`, `HTTPS_PROXY` and
+`ALL_PROXY`. Or, you can set the `http_file.proxy_url` option in the module
+configuration.
+
+The latter takes precedence.
 
 ### Kubernetes
 
@@ -293,6 +332,7 @@ target: <string>
 [ https: <https_probe> ]
 [ tcp: <tcp_probe> ]
 [ kubernetes: <kubernetes_probe> ]
+[ http_file: <http_file_probe> ]
 ```
 
 ### <tls_config>
@@ -337,6 +377,13 @@ target: <string>
 ```
 # The path of a kubeconfig file to configure the probe
 [ kubeconfig: <string> ]
+```
+
+### <http_file_probe>
+
+```
+# HTTP proxy server to use to connect to the targets.
+[ proxy_url: <string> ]
 ```
 
 ## Example Queries
