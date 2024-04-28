@@ -68,4 +68,6 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.29.0
 )
 
-go 1.20
+go 1.21
+
+toolchain go1.22.1
