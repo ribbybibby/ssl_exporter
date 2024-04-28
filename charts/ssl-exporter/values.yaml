@@ -1,0 +1,112 @@
+# Default values for ssl_exporter.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: ribbybibby/ssl-exporter
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 100
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 100
+  runAsGroup: 100
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+extraVolumeMounts: []
+# - name: mysecret
+#   mountPath: /mysecret
+
+extraVolumes: []
+# - name: mysecret
+#   secret:
+#     secretName: mysecret-tls
+
+# query for calling the probe path, without the leading ?
+# probeQuery: probe=file&target=/etc/ssl/ca.crt
+
+config:
+  enabled: true
+  data: |
+    modules:
+      https:
+        prober: https
+      https_insecure:
+        prober: https
+        tls_config:
+          insecure_skip_verify: true
+      https_proxy:
+        prober: https
+        https:
+          proxy_url: "socks5://localhost:8123"
+      https_timeout:
+        prober: https
+        timeout: 3s
+      tcp:
+        prober: tcp
+      tcp_servername:
+        prober: tcp
+        tls_config:
+          server_name: example.com
+      tcp_client_auth:
+        prober: tcp
+        tls_config:
+          ca_file: /etc/tls/ca.crt
+          cert_file: /etc/tls/tls.crt
+          key_file: /etc/tls/tls.key
+      tcp_smtp_starttls:
+        prober: tcp
+        tcp:
+          starttls: smtp
+      file:
+        prober: file
+      kubernetes:
+        prober: kubernetes
+      kubernetes_kubeconfig:
+        prober: kubernetes
+        kubernetes:
+          kubeconfig: /root/.kube/config
+      kubeconfig:
+        prober: kubeconfig

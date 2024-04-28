@@ -1,0 +1,10 @@
+apiVersion: v2
+name: ssl-exporter
+description: SSL Certificate Exporter for Prometheus
+type: application
+version: 0.1.0
+appVersion: "2.4.2"
+home: https://github.com/ribbybibby/ssl_exporter
+maintainers:
+  - name: "@skoef"
+    url: https://github.com/skoef
