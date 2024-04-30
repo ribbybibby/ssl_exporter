@@ -3,6 +3,7 @@ package prober
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v2"
@@ -22,6 +23,8 @@ var (
 	// ErrKubeBadTarget is returned when the target doesn't match the
 	// expected form for the kubernetes prober
 	ErrKubeBadTarget = fmt.Errorf("Target secret must be provided in the form: <namespace>/<name>")
+
+	globPattern = regexp.MustCompile(`^.*(\*|\?|\{|\}|\[|\])+.*$`)
 )
 
 // ProbeKubernetes collects certificate metrics from kubernetes.io/tls Secrets
@@ -43,8 +46,15 @@ func probeKubernetes(ctx context.Context, target string, module config.Module, r
 	ns := parts[0]
 	name := parts[1]
 
+	// If the namespace contains a glob pattern then we need to filter on
+	// all the secrets in the cluster
+	selector := ns
+	if globPattern.MatchString(ns) {
+		selector = ""
+	}
+
 	var tlsSecrets []v1.Secret
-	secrets, err := client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{FieldSelector: "type=kubernetes.io/tls"})
+	secrets, err := client.CoreV1().Secrets(selector).List(ctx, metav1.ListOptions{FieldSelector: "type=kubernetes.io/tls"})
 	if err != nil {
 		return err
 	}
