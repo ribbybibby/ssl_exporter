@@ -27,6 +27,7 @@ metric indicates if the probe has been successful.
 
 ### Release process
 
+- Update the Helm chart version in [`charts/exporter/Chart.yaml`](charts/exporter/Chart.yaml)
 - Create a release in Github with a semver tag and GH actions will:
   - Add a changelog
   - Upload binaries
