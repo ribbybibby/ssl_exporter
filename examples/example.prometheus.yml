@@ -34,3 +34,18 @@ scrape_configs:
     static_configs:
       - targets:
           - 127.0.0.1:9219
+  - job_name: 'ssl-http-files'
+    metrics_path: /probe
+    params:
+      module: ["http_file"]
+    static_configs:
+      - targets:
+        - 'https://www.paypalobjects.com/marketing/web/logos/paypal_com.pem'
+        - 'https://d3frv9g52qce38.cloudfront.net/amazondefault/amazon_web_services_inc_2024.pem'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219

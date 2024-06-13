@@ -38,6 +38,12 @@ modules:
   file_ca_certificates:
     prober: file
     target: /etc/ssl/certs/ca-certificates.crt
+  http_file:
+    prober: http_file
+  http_file_proxy:
+    prober: http_file
+    http_file:
+      proxy_url: "socks5://localhost:8123"
   kubernetes:
     prober: kubernetes
   kubernetes_kubeconfig:

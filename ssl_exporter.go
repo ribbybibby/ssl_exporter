@@ -8,16 +8,17 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/ribbybibby/ssl_exporter/v2/config"
 	"github.com/ribbybibby/ssl_exporter/v2/prober"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -115,7 +116,7 @@ func probeHandler(logger log.Logger, w http.ResponseWriter, r *http.Request, con
 }
 
 func init() {
-	prometheus.MustRegister(version.NewCollector(namespace + "_exporter"))
+	prometheus.MustRegister(versioncollector.NewCollector(namespace + "_exporter"))
 }
 
 func main() {

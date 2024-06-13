@@ -16,6 +16,7 @@ var (
 		"tcp":        ProbeTCP,
 		"ocsp":       ProbeOCSP,
 		"file":       ProbeFile,
+		"http_file":  ProbeHTTPFile,
 		"kubernetes": ProbeKubernetes,
 		"kubeconfig": ProbeKubeconfig,
 	}
