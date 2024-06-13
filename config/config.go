@@ -20,6 +20,9 @@ var (
 			"tcp": {
 				Prober: "tcp",
 			},
+			"ocsp": {
+				Prober: "ocsp",
+			},
 			"http": {
 				Prober: "https",
 			},
@@ -75,6 +78,7 @@ type Module struct {
 	TLSConfig  TLSConfig       `yaml:"tls_config,omitempty"`
 	HTTPS      HTTPSProbe      `yaml:"https,omitempty"`
 	TCP        TCPProbe        `yaml:"tcp,omitempty"`
+	OCSP       OCSPProbe       `yaml:"ocsp,omitempty"`
 	Kubernetes KubernetesProbe `yaml:"kubernetes,omitempty"`
 	HTTPFile   HTTPFileProbe   `yaml:"http_file,omitempty"`
 }
@@ -134,6 +138,13 @@ func NewTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
 // TCPProbe configures a tcp probe
 type TCPProbe struct {
 	StartTLS string `yaml:"starttls,omitempty"`
+}
+
+// OCSPProbe configures a ocsp probe
+type OCSPProbe struct {
+	ClientCert  string `yaml:"client_cert"`
+	IssuingCert string `yaml:"issuing_cert,omitempty"`
+	Path        string `yaml:"path,omitempty"`
 }
 
 // HTTPSProbe configures a https probe

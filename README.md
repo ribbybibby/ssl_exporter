@@ -3,6 +3,7 @@
 Exports metrics for certificates collected from various sources:
 - [TCP probes](#tcp)
 - [HTTPS probes](#https)
+- [OCSP probes](#ocsp)
 - [PEM files](#file)
 - [Remote PEM files](#http_file)
 - [Kubernetes secrets](#kubernetes)
@@ -135,6 +136,39 @@ This will use proxy servers discovered by the environment variables `HTTP_PROXY`
 configuration.
 
 The latter takes precedence.
+
+### OCSP
+
+The exporter will make a HTTP connection to the target, sending an
+[OCSP](https://en.wikipedia.org/wiki/Online_Certificate_Status_Protocol) request
+to the specified path, verifying the supplied certificate with the supplied
+issuing certificate.  By providing both certificates (vs. downloading the
+issuing certificate via the Issuing Certificate URL specified in the client
+certificate) we limit our testing to just the OCSP validation service instead of
+having a path depend on being able to retrieve the issuing certificate.
+
+This will return just `ssl_ocsp...` metrics, as OCSP responders communicate over
+plain HTTP.
+
+```yml
+scrape_configs:
+  - job_name: "ocsp"
+    metrics_path: /probe
+    params:
+      module: ["ocsp"]
+    static_configs:
+      - targets:
+          - ocspresponder1.example.com
+          - ocspresponder2.example.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219
+```
+
 
 ### File
 
@@ -363,6 +397,19 @@ target: <string>
 ```
 # HTTP proxy server to use to connect to the targets.
 [ proxy_url: <string> ]
+```
+
+### <ocsp_probe>
+
+```
+# The client certificate to check vs. the OCSP responder
+[ client_cert: <filename> ]
+
+# The issuing certificate which signed the client_cert
+[ issuing_cert: <filename> ]
+
+# path on the target to the OCSP responder (e.g., '/ocsp')
+[ path: <string> ]
 ```
 
 ### <tcp_probe>

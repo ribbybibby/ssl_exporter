@@ -52,3 +52,9 @@ modules:
       kubeconfig: /root/.kube/config
   kubeconfig:
     prober: kubeconfig
+  ocsp:
+    prober: ocsp
+    ocsp:
+      client_cert: /etc/ssl/certs/CompanyServerCA.pem
+      issuing_cert: /etc/ssl/certs/CompanyRoot.pem
+      path: /ocsp
