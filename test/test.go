@@ -1,6 +1,7 @@
 package test
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -15,6 +16,11 @@ import (
 
 // GenerateTestCertificate generates a test certificate with the given expiry date
 func GenerateTestCertificate(expiry time.Time) ([]byte, []byte) {
+	return GenerateTestCertificateWithCRLDP(expiry, "")
+}
+
+// GenerateTestCertificateWithCRLDP generates a test certificate which contains a CRL distribution point
+func GenerateTestCertificateWithCRLDP(expiry time.Time, crlURL string) ([]byte, []byte) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating rsa key: %s", err))
@@ -23,6 +29,9 @@ func GenerateTestCertificate(expiry time.Time) ([]byte, []byte) {
 
 	cert := GenerateCertificateTemplate(expiry)
 	cert.IsCA = true
+	if crlURL != "" {
+		cert.CRLDistributionPoints = []string{crlURL}
+	}
 
 	_, pemCert := GenerateSelfSignedCertificateWithPrivateKey(cert, privateKey)
 
@@ -76,7 +85,7 @@ func GenerateCertificateTemplate(expiry time.Time) *x509.Certificate {
 		NotBefore:             time.Now(),
 		NotAfter:              expiry,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 		Subject: pkix.Name{
 			CommonName:         "example.ribbybibby.me",
@@ -86,6 +95,30 @@ func GenerateCertificateTemplate(expiry time.Time) *x509.Certificate {
 		EmailAddresses: []string{"me@ribbybibby.me", "example@ribbybibby.me"},
 		DNSNames:       []string{"example.ribbybibby.me", "example-2.ribbybibby.me", "example-3.ribbybibby.me"},
 	}
+}
+
+func GenerateRevocationListEntry(serial *big.Int, reason int) *x509.RevocationListEntry {
+	return &x509.RevocationListEntry{
+		SerialNumber:   serial,
+		RevocationTime: time.Now(),
+		ReasonCode:     reason,
+	}
+}
+
+// GenerateCRL generates a Certificate Revocation List
+func GenerateCRL(entry *x509.RevocationListEntry, issuer *x509.Certificate, key crypto.Signer, expiry time.Time) ([]byte, error) {
+	template := &x509.RevocationList{
+		SignatureAlgorithm:        issuer.SignatureAlgorithm,
+		Issuer:                    issuer.Subject,
+		ThisUpdate:                time.Now(),
+		NextUpdate:                expiry,
+		RevokedCertificateEntries: []x509.RevocationListEntry{},
+		Number:                    big.NewInt(1),
+	}
+	if entry != nil {
+		template.RevokedCertificateEntries = append(template.RevokedCertificateEntries, *entry)
+	}
+	return x509.CreateRevocationList(rand.Reader, template, issuer, key)
 }
 
 // WriteFile writes some content to a temporary file

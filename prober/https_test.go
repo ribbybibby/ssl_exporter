@@ -55,6 +55,7 @@ func TestProbeHTTPS(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -164,6 +165,7 @@ func TestProbeHTTPSNoScheme(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -207,6 +209,7 @@ func TestProbeHTTPSServerName(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -285,6 +288,7 @@ func TestProbeHTTPSClientAuth(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -422,6 +426,7 @@ func TestProbeHTTPSExpiredInsecure(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -486,6 +491,7 @@ func TestProbeHTTPSProxy(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -532,6 +538,7 @@ func TestProbeHTTPSOCSP(t *testing.T) {
 
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics(resp, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -613,6 +620,7 @@ func TestProbeHTTPSVerifiedChains(t *testing.T) {
 
 	checkCertificateMetrics(serverCert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkVerifiedChainMetrics(verifiedChains, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
