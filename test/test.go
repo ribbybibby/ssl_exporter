@@ -8,9 +8,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
+	"os"
 	"time"
 )
 
@@ -123,7 +123,7 @@ func GenerateCRL(entry *x509.RevocationListEntry, issuer *x509.Certificate, key 
 
 // WriteFile writes some content to a temporary file
 func WriteFile(filename string, contents []byte) (string, error) {
-	tmpFile, err := ioutil.TempFile("", filename)
+	tmpFile, err := os.CreateTemp("", filename)
 	if err != nil {
 		return tmpFile.Name(), err
 	}
