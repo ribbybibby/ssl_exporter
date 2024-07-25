@@ -288,6 +288,19 @@ func SetupTCPServer() (*TCPServer, []byte, []byte, string, func(), error) {
 	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
 }
 
+// SetupTCPServerWithCRLDP sets up a server for testing with a generated cert and key pair
+// and a CRL distribution point
+func SetupTCPServerWithCRLDP(crlURL string) (*TCPServer, []byte, []byte, string, func(), error) {
+	testcertPEM, testkeyPEM := GenerateTestCertificateWithCRLDP(time.Now().AddDate(0, 0, 1), crlURL)
+
+	server, caFile, teardown, err := SetupTCPServerWithCertAndKey(testcertPEM, testcertPEM, testkeyPEM)
+	if err != nil {
+		return nil, testcertPEM, testkeyPEM, caFile, teardown, err
+	}
+
+	return server, testcertPEM, testkeyPEM, caFile, teardown, nil
+}
+
 // SetupTCPServerWithCertAndKey sets up a server with the provided certs and key
 func SetupTCPServerWithCertAndKey(caPEM, certPEM, keyPEM []byte) (*TCPServer, string, func(), error) {
 	var teardown func()

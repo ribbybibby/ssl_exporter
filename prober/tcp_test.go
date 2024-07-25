@@ -9,6 +9,8 @@ import (
 	"crypto/x509"
 	"math/big"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -52,6 +54,7 @@ func TestProbeTCP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -123,6 +126,7 @@ func TestProbeTCPServerName(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -204,6 +208,7 @@ func TestProbeTCPExpiredInsecure(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -243,6 +248,7 @@ func TestProbeTCPStartTLSSMTP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -283,6 +289,7 @@ func TestProbeTCPStartTLSSMTPWithDashInResponse(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -322,6 +329,7 @@ func TestProbeTCPStartTLSFTP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -361,6 +369,7 @@ func TestProbeTCPStartTLSIMAP(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -400,6 +409,7 @@ func TestProbeTCPStartTLSPOP3(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -439,6 +449,7 @@ func TestProbeTCPStartTLSPostgreSQL(t *testing.T) {
 	}
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -515,6 +526,7 @@ func TestProbeTCPOCSP(t *testing.T) {
 
 	checkCertificateMetrics(cert, registry, t)
 	checkOCSPMetrics(resp, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
@@ -596,6 +608,116 @@ func TestProbeTCPVerifiedChains(t *testing.T) {
 
 	checkCertificateMetrics(serverCert, registry, t)
 	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics([]byte{}, registry, t)
 	checkVerifiedChainMetrics(verifiedChains, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
+}
+
+func TestProbeTCPCRL(t *testing.T) {
+	var crlFile []byte
+
+	crlServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write(crlFile)
+	}))
+
+	crlServer.Start()
+	defer crlServer.Close()
+
+	server, certPEM, keyPEM, caFile, teardown, err := test.SetupTCPServerWithCRLDP(crlServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := newKey(keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crlFile, err = test.GenerateCRL(nil, cert, key, time.Now().AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: config.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics(crlFile, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
+}
+
+func TestProbeTCPCRL_Revoked(t *testing.T) {
+	var crlFile []byte
+
+	crlServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write(crlFile)
+	}))
+
+	crlServer.Start()
+	defer crlServer.Close()
+
+	server, certPEM, keyPEM, caFile, teardown, err := test.SetupTCPServerWithCRLDP(crlServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := newKey(keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := test.GenerateRevocationListEntry(cert.SerialNumber, 5)
+	crlFile, err = test.GenerateCRL(entry, cert, key, time.Now().AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server.StartTLS()
+	defer server.Close()
+
+	module := config.Module{
+		TLSConfig: config.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkCRLMetrics(crlFile, registry, t)
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
