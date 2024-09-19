@@ -175,6 +175,27 @@ scrape_configs:
         target_label: __address__
         replacement: ${1}:9219
 ```
+Another Prometheus scrape-config example for usage of this "file" prober to check the expiry of local certificate files without Kubernetes:
+
+```yml
+scrape_configs:
+  - job_name: 'ssl-local-file'
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+        - /etc/easyrsa/pki/*.crt   # example for easyrsa .crt files
+        - /etc/easyrsa/pki/issued/*.crt   # example for easyrsa .crt files
+    metrics_path: /probe
+    params:
+      module: [file]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9219  # The exporter's real hostname:port
+```
 
 ### HTTP File
 
