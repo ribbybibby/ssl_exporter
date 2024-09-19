@@ -1,0 +1,13 @@
+# example docker compose file
+services:
+  exporter:
+    image: ribbybibby/ssl-exporter:latest # or use specific version e.g. ribbybibby/ssl-exporter:2.4.3
+    command: --web.listen-address=":9219" --log.level="info"
+    restart: always
+    user: 0:0 # UID:GID - attention: user/group need read permissions to SSL-certificate files to be checked
+    #volumes:
+    #  - /etc/easyrsa/pki/issued:/mnt/ssl-certs:ro 
+    ports:
+      - 9219:9219
+    #logging:
+      #driver: none
