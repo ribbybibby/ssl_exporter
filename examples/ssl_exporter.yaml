@@ -23,6 +23,12 @@ modules:
     prober: tcp
     tls_config:
       server_name: example.com
+  tcp_mysql_starttls:
+    prober: tcp
+    tcp:
+      starttls: mysql
+    tls_config:
+      insecure_skip_verify: true
   tcp_client_auth:
     prober: tcp
     tls_config:

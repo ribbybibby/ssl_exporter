@@ -442,6 +442,45 @@ func TestProbeTCPStartTLSPostgreSQL(t *testing.T) {
 	checkTLSVersionMetrics("TLS 1.3", registry, t)
 }
 
+// TestProbeTCPStartTLSMySQL tests STARTTLS against a mock MySQL server
+func TestProbeTCPStartTLSMySQL(t *testing.T) {
+	server, certPEM, _, caFile, teardown, err := test.SetupTCPServer()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer teardown()
+
+	server.StartMySQL()
+	defer server.Close()
+
+	module := config.Module{
+		TCP: config.TCPProbe{
+			StartTLS: "mysql",
+		},
+		TLSConfig: config.TLSConfig{
+			CAFile:             caFile,
+			InsecureSkipVerify: false,
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ProbeTCP(ctx, newTestLogger(), server.Listener.Addr().String(), module, registry); err != nil {
+		t.Fatalf("error: %s", err)
+	}
+
+	cert, err := newCertificate(certPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCertificateMetrics(cert, registry, t)
+	checkOCSPMetrics([]byte{}, registry, t)
+	checkTLSVersionMetrics("TLS 1.3", registry, t)
+}
+
 // TestProbeTCPTimeout tests that the TCP probe respects the timeout in the
 // context
 func TestProbeTCPTimeout(t *testing.T) {
