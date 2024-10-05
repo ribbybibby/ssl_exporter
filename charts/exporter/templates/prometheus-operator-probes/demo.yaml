@@ -1,0 +1,17 @@
+{{- if $.Values.prometheusOperator.enableExampleProbes }}
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-demo
+  labels:
+    release: prometheus-operator
+    {{- include "labels" $ | nindent 4 }}
+spec:
+  prober:
+    url: {{ printf "%s.%s.svc" (include "releasename" .) $.Release.Namespace | quote }}
+  module: http
+  targets:
+    staticConfig:
+      static:
+        - "https://demo.do.prometheus.io"
+{{- end }}
