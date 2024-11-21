@@ -78,6 +78,13 @@ func collectCertificateMetrics(certs []*x509.Certificate, registry *prometheus.R
 			},
 			[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
+		validSeconds = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "cert_valid_seconds"),
+				Help: "Remaining validity time in seconds",
+			},
+			[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
 		notBefore = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: prometheus.BuildFQName(namespace, "", "cert_not_before"),
@@ -86,7 +93,7 @@ func collectCertificateMetrics(certs []*x509.Certificate, registry *prometheus.R
 			[]string{"serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
 	)
-	registry.MustRegister(notAfter, notBefore)
+	registry.MustRegister(notAfter, validSeconds, notBefore)
 
 	certs = uniq(certs)
 
@@ -99,6 +106,10 @@ func collectCertificateMetrics(certs []*x509.Certificate, registry *prometheus.R
 
 		if !cert.NotAfter.IsZero() {
 			notAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+		}
+
+		if !cert.NotAfter.IsZero() {
+			validSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 		}
 
 		if !cert.NotBefore.IsZero() {
@@ -118,6 +129,13 @@ func collectVerifiedChainMetrics(verifiedChains [][]*x509.Certificate, registry 
 			},
 			[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
+		verifiedValidSeconds = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "verified_cert_valid_seconds"),
+				Help: "Remaining validity time in seconds",
+			},
+			[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
 		verifiedNotBefore = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: prometheus.BuildFQName(namespace, "", "verified_cert_not_before"),
@@ -126,7 +144,7 @@ func collectVerifiedChainMetrics(verifiedChains [][]*x509.Certificate, registry 
 			[]string{"chain_no", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
 	)
-	registry.MustRegister(verifiedNotAfter, verifiedNotBefore)
+	registry.MustRegister(verifiedNotAfter, verifiedValidSeconds, verifiedNotBefore)
 
 	sort.Slice(verifiedChains, func(i, j int) bool {
 		iExpiry := time.Time{}
@@ -153,6 +171,10 @@ func collectVerifiedChainMetrics(verifiedChains [][]*x509.Certificate, registry 
 
 			if !cert.NotAfter.IsZero() {
 				verifiedNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotAfter.IsZero() {
+				verifiedValidSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 			}
 
 			if !cert.NotBefore.IsZero() {
@@ -241,6 +263,13 @@ func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.
 			},
 			[]string{"file", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
+		fileValidSeconds = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "file_cert_valid_seconds"),
+				Help: "Remaining validity time in seconds",
+			},
+			[]string{"file", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
 		fileNotBefore = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: prometheus.BuildFQName(namespace, "", "file_cert_not_before"),
@@ -249,7 +278,7 @@ func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.
 			[]string{"file", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
 	)
-	registry.MustRegister(fileNotAfter, fileNotBefore)
+	registry.MustRegister(fileNotAfter, fileValidSeconds, fileNotBefore)
 
 	for _, f := range files {
 		data, err := ioutil.ReadFile(f)
@@ -267,6 +296,10 @@ func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.
 
 			if !cert.NotAfter.IsZero() {
 				fileNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotAfter.IsZero() {
+				fileValidSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 			}
 
 			if !cert.NotBefore.IsZero() {
@@ -292,6 +325,13 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 			},
 			[]string{"namespace", "secret", "key", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
+		kubernetesValidSeconds = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "kubernetes_cert_valid_seconds"),
+				Help: "Remaining validity time in seconds",
+			},
+			[]string{"namespace", "secret", "key", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
 		kubernetesNotBefore = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: prometheus.BuildFQName(namespace, "", "kubernetes_cert_not_before"),
@@ -300,7 +340,7 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 			[]string{"namespace", "secret", "key", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
 	)
-	registry.MustRegister(kubernetesNotAfter, kubernetesNotBefore)
+	registry.MustRegister(kubernetesNotAfter, kubernetesValidSeconds, kubernetesNotBefore)
 
 	for _, secret := range secrets {
 		for _, key := range []string{"tls.crt", "ca.crt"} {
@@ -318,6 +358,10 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 
 				if !cert.NotAfter.IsZero() {
 					kubernetesNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+				}
+
+				if !cert.NotAfter.IsZero() {
+					kubernetesValidSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 				}
 
 				if !cert.NotBefore.IsZero() {
@@ -344,6 +388,13 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 			},
 			[]string{"kubeconfig", "name", "type", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
+		kubeconfigValidSeconds = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "kubeconfig", "cert_valid_seconds"),
+				Help: "Remaining validity time in seconds",
+			},
+			[]string{"kubeconfig", "name", "type", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
+		)
 		kubeconfigNotBefore = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: prometheus.BuildFQName(namespace, "kubeconfig", "cert_not_before"),
@@ -352,7 +403,7 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 			[]string{"kubeconfig", "name", "type", "serial_no", "issuer_cn", "cn", "dnsnames", "ips", "emails", "ou"},
 		)
 	)
-	registry.MustRegister(kubeconfigNotAfter, kubeconfigNotBefore)
+	registry.MustRegister(kubeconfigNotAfter, kubeconfigValidSeconds, kubeconfigNotBefore)
 
 	for _, c := range kubeconfig.Clusters {
 		var data []byte
@@ -382,6 +433,10 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 
 			if !cert.NotAfter.IsZero() {
 				kubeconfigNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotAfter.IsZero() {
+				kubeconfigValidSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 			}
 
 			if !cert.NotBefore.IsZero() {
@@ -418,6 +473,10 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 
 			if !cert.NotAfter.IsZero() {
 				kubeconfigNotAfter.WithLabelValues(labels...).Set(float64(cert.NotAfter.Unix()))
+			}
+
+			if !cert.NotAfter.IsZero() {
+				kubeconfigValidSeconds.WithLabelValues(labels...).Set(float64(cert.NotAfter.Sub(time.Now()).Seconds()))
 			}
 
 			if !cert.NotBefore.IsZero() {
