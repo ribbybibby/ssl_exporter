@@ -30,6 +30,10 @@ func newTLSConfig(target string, registry *prometheus.Registry, cfg *config.TLSC
 		return collectConnectionStateMetrics(state, registry)
 	}
 
+	tlsConfig.VerifyPeerCertificate = func(_ [][]byte, verifiedChains [][]*x509.Certificate) error {
+		return collectCRLMetrics(verifiedChains, registry)
+	}
+
 	return tlsConfig, nil
 }
 

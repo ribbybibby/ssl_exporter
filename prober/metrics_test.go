@@ -195,6 +195,70 @@ func checkOCSPMetrics(resp []byte, registry *prometheus.Registry, t *testing.T) 
 	checkRegistryResults(expectedResults, mfs, t)
 }
 
+func checkCRLMetrics(crlRaw []byte, registry *prometheus.Registry, t *testing.T) {
+	var (
+		status     float64
+		reason     float64
+		revokedAt  float64
+		number     float64
+		thisUpdate float64
+		nextUpdate float64
+	)
+	mfs, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(crlRaw) == 0 {
+		expectedResults := []*registryResult{
+			{
+				Name:  "ssl_crl_status",
+				Value: 2,
+			},
+		}
+		checkRegistryResults(expectedResults, mfs, t)
+		return
+	}
+	crl, err := x509.ParseRevocationList(crlRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	number = float64(crl.Number.Int64())
+	thisUpdate = float64(crl.ThisUpdate.Unix())
+	nextUpdate = float64(crl.NextUpdate.Unix())
+	if len(crl.RevokedCertificateEntries) > 0 {
+		status = 1
+		reason = float64(crl.RevokedCertificateEntries[0].ReasonCode)
+		revokedAt = float64(crl.RevokedCertificateEntries[0].RevocationTime.Unix())
+	}
+	expectedResults := []*registryResult{
+		{
+			Name:  "ssl_crl_status",
+			Value: status,
+		},
+		{
+			Name:  "ssl_crl_revoke_reason",
+			Value: reason,
+		},
+		{
+			Name:  "ssl_crl_revoked_at",
+			Value: revokedAt,
+		},
+		{
+			Name:  "ssl_crl_number",
+			Value: number,
+		},
+		{
+			Name:  "ssl_crl_this_update",
+			Value: thisUpdate,
+		},
+		{
+			Name:  "ssl_crl_next_update",
+			Value: nextUpdate,
+		},
+	}
+	checkRegistryResults(expectedResults, mfs, t)
+}
+
 func checkTLSVersionMetrics(version string, registry *prometheus.Registry, t *testing.T) {
 	mfs, err := registry.Gather()
 	if err != nil {

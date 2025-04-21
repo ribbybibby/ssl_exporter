@@ -5,7 +5,10 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math/big"
+	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -231,6 +234,96 @@ func collectOCSPMetrics(ocspResponse []byte, registry *prometheus.Registry) erro
 	return nil
 }
 
+func collectCRLMetrics(verifiedChains [][]*x509.Certificate, registry *prometheus.Registry) error {
+	var (
+		crlStatus = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_status"),
+				Help: "The status of the CRL check 0=Good 1=Revoked 2=Unknown",
+			},
+		)
+		crlRevokeReason = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_revoke_reason"),
+				Help: "The reason code for revocation in the CRL as specified in RFC 5280 Section 5.3.1",
+			},
+		)
+		crlRevokedAt = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_revoked_at"),
+				Help: "The revocationTime value in the CRL, expressed as a Unix Epoch Time",
+			},
+		)
+		crlNumber = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_number"),
+				Help: "The value of the X.509 v2 cRLNumber extension in the CRL",
+			},
+		)
+		crlThisUpdate = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_this_update"),
+				Help: "The thisUpdate value in the CRL, expressed as a Unix Epoch Time",
+			},
+		)
+		crlNextUpdate = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: prometheus.BuildFQName(namespace, "", "crl_next_update"),
+				Help: "The nextUpdate value in the CRL, expressed as a Unix Epoch Time",
+			},
+		)
+	)
+	registry.MustRegister(
+		crlStatus,
+		crlRevokeReason,
+		crlRevokedAt,
+		crlNumber,
+		crlThisUpdate,
+		crlNextUpdate,
+	)
+
+	if len(verifiedChains) == 0 {
+		crlStatus.Set(2)
+		return nil
+	}
+
+	var cert *x509.Certificate
+	var crl *x509.RevocationList
+	var err error
+	for _, chain := range verifiedChains {
+		if len(chain) == 0 {
+			continue
+		}
+		cert = chain[0]
+		crl, err = fetchCRL(chain)
+		if crl != nil {
+			break
+		}
+	}
+
+	if err != nil {
+		crlStatus.Set(2)
+		return err
+	}
+	if crl == nil {
+		crlStatus.Set(2)
+		return nil
+	}
+	num, _ := new(big.Float).SetInt(crl.Number).Float64()
+	crlNumber.Set(num)
+	crlThisUpdate.Set(float64(crl.ThisUpdate.Unix()))
+	crlNextUpdate.Set(float64(crl.NextUpdate.Unix()))
+	for _, revokedCert := range crl.RevokedCertificateEntries {
+		if revokedCert.SerialNumber.Cmp(cert.SerialNumber) == 0 {
+			crlStatus.Set(1)
+			crlRevokeReason.Set(float64(revokedCert.ReasonCode))
+			crlRevokedAt.Set(float64(revokedCert.RevocationTime.Unix()))
+			break
+		}
+	}
+	return nil
+}
+
 func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.Registry) error {
 	var (
 		totalCerts   []*x509.Certificate
@@ -252,7 +345,7 @@ func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.
 	registry.MustRegister(fileNotAfter, fileNotBefore)
 
 	for _, f := range files {
-		data, err := ioutil.ReadFile(f)
+		data, err := os.ReadFile(f)
 		if err != nil {
 			level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", f, err))
 			continue
@@ -363,7 +456,7 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 				return err
 			}
 		} else if c.Cluster.CertificateAuthority != "" {
-			data, err = ioutil.ReadFile(c.Cluster.CertificateAuthority)
+			data, err = os.ReadFile(c.Cluster.CertificateAuthority)
 			if err != nil {
 				level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", c.Cluster.CertificateAuthority, err))
 				return err
@@ -399,7 +492,7 @@ func collectKubeconfigMetrics(logger log.Logger, kubeconfig KubeConfig, registry
 				return err
 			}
 		} else if u.User.ClientCertificate != "" {
-			data, err = ioutil.ReadFile(u.User.ClientCertificate)
+			data, err = os.ReadFile(u.User.ClientCertificate)
 			if err != nil {
 				level.Debug(logger).Log("msg", fmt.Sprintf("Error reading file %s: %s", u.User.ClientCertificate, err))
 				return err
@@ -479,4 +572,63 @@ func organizationalUnits(cert *x509.Certificate) string {
 	}
 
 	return ""
+}
+
+func fetchCRLDistributionPointFromCert(cert *x509.Certificate) string {
+	for _, url := range cert.CRLDistributionPoints {
+		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+			return url
+		}
+	}
+	return ""
+}
+
+func getCRLIssuerCert(crl *x509.RevocationList, issuers []*x509.Certificate) (*x509.Certificate, error) {
+	for _, issuer := range issuers {
+		if crl.Issuer.String() == issuer.Subject.String() {
+			return issuer, nil
+		}
+	}
+	return nil, fmt.Errorf("no issuer found for CRL")
+}
+
+func fetchCRL(issuers []*x509.Certificate ) (*x509.RevocationList, error) {
+	var crlURL string
+	for _, issuer := range issuers {
+		crlURL = fetchCRLDistributionPointFromCert(issuer)
+		if crlURL != "" {
+			break
+		}
+	}
+	if crlURL == "" {
+		// CA/B Forum Ballot SC-063 v4 requires a CRL distribution point, but that only applies for publicly trusted CAs
+		return nil, nil
+	}
+
+	resp, err := http.Get(crlURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	crl, err := x509.ParseRevocationList(data)
+	if err != nil {
+		return nil, err
+	}
+	issuer, err := getCRLIssuerCert(crl, issuers)
+	if err != nil {
+		return nil, err
+	}
+	if err := crl.CheckSignatureFrom(issuer); err != nil {
+		return nil, err
+	}
+	if crl.NextUpdate.Before(time.Now()) {
+		return nil, fmt.Errorf("CRL has expired")
+	}
+	return crl, nil
 }

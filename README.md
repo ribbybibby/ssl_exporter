@@ -73,6 +73,12 @@ Flags:
 | ssl_ocsp_response_status       | The status in the OCSP response. 0=Good 1=Revoked 2=Unknown                                                      |                                                                             | tcp, https |
 | ssl_ocsp_response_stapled      | Does the connection state contain a stapled OCSP response? Boolean.                                              |                                                                             | tcp, https |
 | ssl_ocsp_response_this_update  | The thisUpdate value in the OCSP response. Expressed as a Unix Epoch Time                                        |                                                                             | tcp, https |
+| ssl_crl_status                 | The status of the CRL check 0=Good 1=Revoked 2=Unknown                           |     | tcp, https |
+| ssl_crl_revoke_reason          | The reason code for revocation in the CRL as specified in RFC 5280 Section 5.3.1 |     | tcp, https |
+| ssl_crl_revoked_at             | The revocationTime value in the CRL, expressed as a Unix Epoch Time              |     | tcp, https |
+| ssl_crl_number                 | The value of the X.509 v2 cRLNumber extension in the CRL                         |     | tcp, https |
+| ssl_crl_this_update            | The thisUpdate value in the CRL, expressed as a Unix Epoch Time                  |     | tcp, https |
+| ssl_crl_next_update            | The nextUpdate value in the CRL, expressed as a Unix Epoch Time                  |     | tcp, https |
 | ssl_probe_success              | Was the probe successful? Boolean.                                                                               |                                                                             | all        |
 | ssl_prober                     | The prober used by the exporter to connect to the target. Boolean.                                               | prober                                                                      | all        |
 | ssl_tls_version_info           | The TLS version used. Always 1.                                                                                  | version                                                                     | tcp, https |
